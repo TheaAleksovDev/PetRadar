@@ -1,0 +1,113 @@
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+type Props = {
+  open: boolean;
+  onToggle: () => void;
+  onSighting: () => void;
+  onLost: () => void;
+};
+
+export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
+  return (
+    <>
+      {open && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={onToggle} />
+      )}
+
+      {open && (
+        <View style={styles.menu}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={onSighting}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.menuIcon, { backgroundColor: "#1C1C1E" }]}>
+              <Text style={styles.menuEmoji}>📷</Text>
+            </View>
+            <Text style={styles.menuLabel}>Забелязах любимец</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={onLost}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.menuIcon, { backgroundColor: "#EF4444" }]}>
+              <Text style={styles.menuEmoji}>🐾</Text>
+            </View>
+            <Text style={styles.menuLabel}>Търся любимец</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={onToggle}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.fabIcon}>{open ? "✕" : "+"}</Text>
+      </TouchableOpacity>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    bottom: 32,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#1C1C1E",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  fabIcon: {
+    fontSize: 28,
+    color: "#fff",
+    lineHeight: 32,
+    fontWeight: "300",
+  },
+  menu: {
+    position: "absolute",
+    bottom: 100,
+    right: 16,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    gap: 2,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  menuIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuEmoji: { fontSize: 18 },
+  menuLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#1C1C1E",
+  },
+});
