@@ -1,6 +1,7 @@
-import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
-import { useRef, useState } from "react";
+import { MediaImage, NavArrowLeft } from "iconoir-react-native";
+import { useRef } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
@@ -10,7 +11,6 @@ type Props = {
 };
 
 export default function CameraScreen({ visible, onCapture, onClose }: Props) {
-  const [facing, setFacing] = useState<CameraType>("back");
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
@@ -40,18 +40,17 @@ export default function CameraScreen({ visible, onCapture, onClose }: Props) {
       <View style={styles.container}>
         {permission?.granted ? (
           <>
-            <CameraView ref={cameraRef} style={styles.camera} facing={facing} />
+            <CameraView ref={cameraRef} style={styles.camera} facing="back" />
 
             <View style={styles.overlay} pointerEvents="box-none">
               <View style={styles.topBar}>
                 <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
-                  <Text style={styles.iconText}>‹</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}
-                  style={styles.iconBtn}
-                >
-                  <Text style={styles.iconText}>⟳</Text>
+                  <NavArrowLeft
+                    width={24}
+                    height={24}
+                    color="#fff"
+                    strokeWidth={2}
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -61,21 +60,40 @@ export default function CameraScreen({ visible, onCapture, onClose }: Props) {
                   style={styles.galleryBtn}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.galleryText}>Галерия</Text>
+                  <MediaImage
+                    width={28}
+                    height={28}
+                    color="#fff"
+                    strokeWidth={1.5}
+                  />
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={shoot} style={styles.shutter} activeOpacity={0.85}>
+                <TouchableOpacity
+                  onPress={shoot}
+                  style={styles.shutter}
+                  activeOpacity={0.85}
+                >
                   <View style={styles.shutterInner} />
                 </TouchableOpacity>
 
-                <View style={styles.iconBtn} />
+                <View
+                  style={{
+                    opacity: 0,
+                    width: 56,
+                  }}
+                />
               </View>
             </View>
           </>
         ) : (
           <View style={styles.permissionScreen}>
-            <Text style={styles.permissionText}>Необходим е достъп до камерата</Text>
-            <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
+            <Text style={styles.permissionText}>
+              Необходим е достъп до камерата
+            </Text>
+            <TouchableOpacity
+              style={styles.permissionBtn}
+              onPress={requestPermission}
+            >
               <Text style={styles.permissionBtnText}>Разреши достъп</Text>
             </TouchableOpacity>
           </View>
@@ -106,20 +124,20 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: "rgba(0,0,0,0.35)",
   },
-  iconText: { color: "#fff", fontSize: 26, fontWeight: "300", lineHeight: 30 },
   bottomBar: {
     position: "absolute",
     bottom: 52,
     left: 0,
     right: 0,
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 36,
+    justifyContent: "center",
+    gap: 32,
+    flexDirection: "row",
   },
+
   galleryBtn: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
@@ -127,7 +145,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.4)",
   },
-  galleryText: { color: "#fff", fontSize: 11, fontWeight: "600" },
   shutter: {
     width: 80,
     height: 80,
@@ -138,7 +155,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  shutterInner: { width: 62, height: 62, borderRadius: 31, backgroundColor: "#fff" },
+  shutterInner: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#fff",
+  },
   permissionScreen: {
     flex: 1,
     alignItems: "center",

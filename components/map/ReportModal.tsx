@@ -1,3 +1,4 @@
+import { NavArrowLeft, Undo } from "iconoir-react-native";
 import {
   Dimensions,
   Image,
@@ -73,7 +74,7 @@ export default function ReportModal({
           <View style={styles.card}>
             <View style={styles.header}>
               <TouchableOpacity onPress={onClose} style={styles.backBtn}>
-                <Text style={styles.backIcon}>‹</Text>
+                <NavArrowLeft width={26} height={26} color="#2563EB" strokeWidth={2} />
               </TouchableOpacity>
               <Text style={styles.title}>Забелязах любимец</Text>
               <View style={{ width: 36 }} />
@@ -91,6 +92,7 @@ export default function ReportModal({
                   options={COLORS}
                   value={form.color}
                   onChange={(v) => onFormChange("color", v)}
+                  allowCustom
                 />
                 <View style={styles.divider} />
                 <Dropdown
@@ -98,6 +100,7 @@ export default function ReportModal({
                   options={BREEDS}
                   value={form.breed}
                   onChange={(v) => onFormChange("breed", v)}
+                  allowCustom
                 />
                 <View style={styles.divider} />
                 <Dropdown
@@ -105,6 +108,7 @@ export default function ReportModal({
                   options={AGES}
                   value={form.age}
                   onChange={(v) => onFormChange("age", v)}
+                  allowCustom
                 />
               </View>
 
@@ -131,9 +135,10 @@ export default function ReportModal({
                     onPress={onResetLocation}
                     style={styles.resetBtn}
                   >
-                    <Text style={styles.resetBtnText}>
-                      ↩ Върни към текущата ми локация
-                    </Text>
+                    <View style={styles.resetBtnRow}>
+                      <Undo width={13} height={13} color="#2563EB" strokeWidth={2} />
+                      <Text style={styles.resetBtnText}>Върни към текущата ми локация</Text>
+                    </View>
                   </TouchableOpacity>
                 )}
               </View>
@@ -197,11 +202,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  backIcon: {
-    fontSize: 30,
-    color: "#2563EB",
-    lineHeight: 34,
-  },
   title: {
     fontSize: 17,
     fontWeight: "600",
@@ -259,6 +259,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E5EA",
+  },
+  resetBtnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   resetBtnText: {
     fontSize: 13,

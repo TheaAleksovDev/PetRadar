@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { ShareAndroid } from "iconoir-react-native";
+import { Phone, ShareAndroid } from "iconoir-react-native";
 import {
   Animated,
   Image,
+  Linking,
   Modal,
   PanResponder,
   Share,
@@ -11,10 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import type { Coords, SightingMarker } from "./types";
+import type { Coords, LostMarker } from "./types";
 
-const SHEET_HEIGHT = 420;
+const SHEET_HEIGHT = 460;
 const DRAG_THRESHOLD = 60;
+const LOST_COLOR = "#EF4444";
 
 function haversineKm(a: Coords, b: Coords): number {
   const R = 6371;
@@ -35,19 +37,19 @@ function formatDistance(km: number): string {
 
 function timeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return "Забелязан току-що";
-  if (diff < 3600) return `Забелязан преди ${Math.floor(diff / 60)}м.`;
-  if (diff < 86400) return `Забелязан преди ${Math.floor(diff / 3600)}ч.`;
-  return `Забелязан преди ${Math.floor(diff / 86400)}д.`;
+  if (diff < 60) return "Току-що";
+  if (diff < 3600) return `Преди ${Math.floor(diff / 60)}м.`;
+  if (diff < 86400) return `Преди ${Math.floor(diff / 3600)}ч.`;
+  return `Преди ${Math.floor(diff / 86400)}д.`;
 }
 
 type Props = {
-  marker: SightingMarker | null;
+  marker: LostMarker | null;
   userLocation: Coords;
   onClose: () => void;
 };
 
-export default function PetDetailSheet({
+export default function LostPetDetailSheet({
   marker,
   userLocation,
   onClose,
@@ -107,11 +109,12 @@ export default function PetDetailSheet({
   const dist = formatDistance(km);
   const time = timeAgo(marker.createdAt);
 
-  const handleShare = async () => {
-    await Share.share({
-      message: `Забелязан ${marker.breed} (${marker.color}) — ${time}, ${dist}.${marker.note ? `\n${marker.note}` : ""}`,
+  const handleCall = () => Linking.openURL(`tel:${marker.phone}`);
+
+  const handleShare = () =>
+    Share.share({
+      message: `Търси се ${marker.name} — ${marker.breed} (${marker.color}), ${marker.age}.\n на собственика: ${marker.phone}${marker.note ? `\n${marker.note}` : ""}`,
     });
-  };
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={dismiss}>
@@ -121,28 +124,32 @@ export default function PetDetailSheet({
           activeOpacity={1}
           onPress={dismiss}
         />
-        <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
-        >
-          {/* Drag zone: handle + header capture all vertical swipes */}
+
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+          {/* Drag zone */}
           <View {...panResponder.panHandlers}>
             <View style={styles.handle} />
-
-            {/* Header: breed + badge */}
             <View style={styles.header}>
-              <Text style={styles.breed} numberOfLines={1}>
-                {marker.breed}
+              <Text style={styles.name} numberOfLines={1}>
+                {marker.name}
               </Text>
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>ЗАБЕЛЯЗАН</Text>
+                <Text style={styles.badgeText}>ТЪРСИ СЕ</Text>
               </View>
             </View>
           </View>
 
-          {/* Main content: image + info */}
+          {/* Image + info grid */}
           <View style={styles.content}>
             <Image source={{ uri: marker.imageUri }} style={styles.image} />
             <View style={styles.info}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Порода</Text>
+                <Text style={styles.infoValue} numberOfLines={2}>
+                  {marker.breed}
+                </Text>
+              </View>
+              <View style={styles.divider} />
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Цвят</Text>
                 <Text style={styles.infoValue}>{marker.color}</Text>
@@ -150,17 +157,21 @@ export default function PetDetailSheet({
               <View style={styles.divider} />
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Възраст</Text>
-                <Text style={styles.infoValue}>{marker.age}</Text>
+                <Text style={styles.infoValue} numberOfLines={2}>
+                  {marker.age}
+                </Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Кога</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>{time}</Text>
+                <Text style={styles.infoLabel}>Обявено</Text>
+                <Text style={styles.infoValue}>{time}</Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Разстояние</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>{dist}</Text>
+                <Text style={styles.infoValue} numberOfLines={2}>
+                  {dist}
+                </Text>
               </View>
             </View>
           </View>
@@ -173,17 +184,26 @@ export default function PetDetailSheet({
             </View>
           ) : null}
 
-          {/* Share button */}
-          <TouchableOpacity
-            style={styles.shareBtn}
-            onPress={handleShare}
-            activeOpacity={0.8}
-          >
-            <View style={styles.shareBtnRow}>
-              <ShareAndroid width={16} height={16} color="#fff" strokeWidth={2} />
-              <Text style={styles.shareBtnText}>Сподели</Text>
-            </View>
-          </TouchableOpacity>
+          {/* Action buttons */}
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.callBtn}
+              onPress={handleCall}
+              activeOpacity={0.8}
+            >
+              <View style={styles.actionBtnRow}>
+                <Phone width={18} height={18} color="#fff" strokeWidth={1.8} />
+                <Text style={styles.callBtnText}>Обади се</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.shareBtn}
+              onPress={handleShare}
+              activeOpacity={0.8}
+            >
+              <ShareAndroid width={18} height={18} color="#fff" strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -222,7 +242,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 14,
   },
-  breed: {
+  name: {
     fontSize: 22,
     fontWeight: "700",
     color: "#1C1C1E",
@@ -230,17 +250,17 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   badge: {
-    backgroundColor: "#DCFCE7",
+    backgroundColor: "#FEE2E2",
     borderRadius: 20,
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#86EFAC",
+    borderColor: "#FCA5A5",
   },
   badgeText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#16A34A",
+    color: LOST_COLOR,
     letterSpacing: 0.5,
   },
   content: {
@@ -252,7 +272,7 @@ const styles = StyleSheet.create({
   image: {
     width: 140,
     height: 140,
-    borderRadius: 16,
+    borderRadius: 14,
   },
   info: {
     flex: 1,
@@ -266,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 7,
   },
   infoLabel: {
     fontSize: 12,
@@ -304,21 +324,33 @@ const styles = StyleSheet.create({
     color: "#1C1C1E",
     lineHeight: 20,
   },
-  shareBtn: {
+  actions: {
+    flexDirection: "row",
     marginHorizontal: 16,
-    backgroundColor: "#1C1C1E",
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
+    gap: 10,
   },
-  shareBtnRow: {
+  actionBtnRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  shareBtnText: {
+  callBtn: {
+    flex: 1,
+    backgroundColor: LOST_COLOR,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  callBtnText: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#fff",
+  },
+  shareBtn: {
+    width: 50,
+    backgroundColor: "#1C1C1E",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
   },
 });

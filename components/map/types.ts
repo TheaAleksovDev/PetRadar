@@ -10,3 +10,16 @@ export type SightingMarker = {
   createdAt: number;
   note?: string;
 };
+
+export type LostMarker = {
+  id: string;
+  coordinate: Coords;
+  name: string;
+  color: string;
+  breed: string;
+  age: string;
+  phone: string;
+  imageUri: string;
+  createdAt: number;
+  note?: string;
+};

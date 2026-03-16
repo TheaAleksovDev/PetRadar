@@ -5,13 +5,24 @@ import MapView, { PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 import CameraScreen from "@/components/map/CameraScreen";
 import FabMenu from "@/components/map/FabMenu";
+import LostPetDetailSheet from "@/components/map/LostPetDetailSheet";
+import LostPetModal from "@/components/map/LostPetModal";
 import PetDetailSheet from "@/components/map/PetDetailSheet";
-import PetMarker, { DOT_SIZE, MARKER_H, MARKER_W, PIN_H, PIN_W } from "@/components/map/PetMarker";
+import PetMarker, {
+  DOT_SIZE,
+  LOST_MARKER_H,
+  LOST_MARKER_W,
+  LOST_PIN_H,
+  LOST_PIN_W,
+  MARKER_H,
+  MARKER_W,
+  PIN_H,
+  PIN_W,
+} from "@/components/map/PetMarker";
 import ReportModal from "@/components/map/ReportModal";
-import type { Coords, SightingMarker } from "@/components/map/types";
+import type { Coords, LostMarker, SightingMarker } from "@/components/map/types";
 
 type Form = { color: string; breed: string; age: string; note: string };
-
 const EMPTY_FORM: Form = { color: "", breed: "", age: "", note: "" };
 
 export default function HomeScreen() {
@@ -45,8 +56,34 @@ export default function HomeScreen() {
       createdAt: Date.now() - 2 * 60 * 60 * 1000,
     },
   ]);
+  const [lostMarkers, setLostMarkers] = useState<LostMarker[]>(() => [
+    {
+      id: "lost-seed-1",
+      coordinate: { latitude: 42.6408, longitude: 23.3762 },
+      imageUri: Image.resolveAssetSource(require("../../assets/testImages/PuppyZiggyAtHome-e1590163382501.jpeg")).uri,
+      name: "Зиги",
+      color: "Кафяв",
+      breed: "Лабрадор",
+      age: "Кученце (0–1 г.)",
+      phone: "+359 888 123 456",
+      createdAt: Date.now() - 3 * 60 * 60 * 1000,
+    },
+    {
+      id: "lost-seed-2",
+      coordinate: { latitude: 42.6391, longitude: 23.3795 },
+      imageUri: Image.resolveAssetSource(require("../../assets/testImages/Screen-Shot-2019-01-02-at-12.29.17-PM.png")).uri,
+      name: "Макс",
+      color: "Черен",
+      breed: "Немска овчарка",
+      age: "Възрастен (3–7 г.)",
+      phone: "+359 877 654 321",
+      createdAt: Date.now() - 24 * 60 * 60 * 1000,
+    },
+  ]);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
+  const [lostModalVisible, setLostModalVisible] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<SightingMarker | null>(null);
+  const [selectedLostMarker, setSelectedLostMarker] = useState<LostMarker | null>(null);
   const [points, setPoints] = useState<Record<string, { x: number; y: number }>>({});
   const [latDelta, setLatDelta] = useState(0.01);
 
@@ -56,7 +93,6 @@ export default function HomeScreen() {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
-
       const location = await Location.getCurrentPositionAsync({});
       const coords: Coords = {
         latitude: location.coords.latitude,
@@ -69,9 +105,11 @@ export default function HomeScreen() {
   }, []);
 
   const updatePositions = async () => {
-    if (!mapRef.current || markers.length === 0) return;
+    if (!mapRef.current) return;
+    const all = [...markers, ...lostMarkers];
+    if (all.length === 0) return;
     const entries = await Promise.all(
-      markers.map(async (m) => {
+      all.map(async (m) => {
         const pt = await mapRef.current!.pointForCoordinate(m.coordinate);
         return [m.id, pt] as const;
       })
@@ -80,7 +118,7 @@ export default function HomeScreen() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { updatePositions(); }, [markers]);
+  useEffect(() => { updatePositions(); }, [markers, lostMarkers]);
 
   const openCamera = () => {
     setSightingLocation(userLocation);
@@ -96,7 +134,7 @@ export default function HomeScreen() {
     setReportVisible(true);
   };
 
-  const handleSubmit = () => {
+  const handleSightingSubmit = () => {
     if (!form.color || !form.breed || !form.age || !sightingLocation) return;
     setMarkers((prev) => [
       ...prev,
@@ -115,6 +153,28 @@ export default function HomeScreen() {
     setForm(EMPTY_FORM);
   };
 
+  const handleLostSubmit = (
+    data: { name: string; color: string; breed: string; age: string; phone: string; note: string; imageUri: string },
+    location: Coords
+  ) => {
+    setLostMarkers((prev) => [
+      ...prev,
+      {
+        id: `lost-${Date.now()}`,
+        coordinate: location,
+        imageUri: data.imageUri,
+        createdAt: Date.now(),
+        name: data.name,
+        color: data.color,
+        breed: data.breed,
+        age: data.age,
+        phone: data.phone,
+        note: data.note || undefined,
+      },
+    ]);
+    setLostModalVisible(false);
+  };
+
   if (!initialRegion || !userLocation) return null;
 
   return (
@@ -131,6 +191,7 @@ export default function HomeScreen() {
       />
 
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        {/* Sighting markers */}
         {markers.map((m) => {
           const pt = points[m.id];
           if (!pt) return null;
@@ -141,15 +202,31 @@ export default function HomeScreen() {
           return (
             <TouchableOpacity
               key={m.id}
-              style={{
-                position: "absolute",
-                left: pt.x - w / 2,
-                top: pt.y - anchorY,
-              }}
+              style={{ position: "absolute", left: pt.x - w / 2, top: pt.y - anchorY }}
               onPress={() => setSelectedMarker(m)}
               activeOpacity={0.9}
             >
-              <PetMarker marker={m} zoom={zoom} />
+              <PetMarker marker={m} zoom={zoom} variant="sighting" />
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* Lost markers */}
+        {lostMarkers.map((m) => {
+          const pt = points[m.id];
+          if (!pt) return null;
+          const zoom = latDelta < 0.05 ? "full" : latDelta < 0.2 ? "pin" : "dot";
+          const w = zoom === "full" ? LOST_MARKER_W : zoom === "pin" ? LOST_PIN_W : DOT_SIZE;
+          const h = zoom === "full" ? LOST_MARKER_H : zoom === "pin" ? LOST_PIN_H : DOT_SIZE;
+          const anchorY = zoom === "dot" ? h / 2 : h;
+          return (
+            <TouchableOpacity
+              key={m.id}
+              style={{ position: "absolute", left: pt.x - w / 2, top: pt.y - anchorY }}
+              onPress={() => setSelectedLostMarker(m)}
+              activeOpacity={0.9}
+            >
+              <PetMarker marker={m} zoom={zoom} variant="lost" />
             </TouchableOpacity>
           );
         })}
@@ -159,13 +236,26 @@ export default function HomeScreen() {
         open={fabOpen}
         onToggle={() => setFabOpen((o) => !o)}
         onSighting={openCamera}
-        onLost={() => setFabOpen(false)}
+        onLost={() => { setFabOpen(false); setLostModalVisible(true); }}
       />
 
       <CameraScreen
         visible={cameraVisible}
         onCapture={handleCapture}
         onClose={() => setCameraVisible(false)}
+      />
+
+      <LostPetModal
+        visible={lostModalVisible}
+        userLocation={userLocation}
+        onClose={() => setLostModalVisible(false)}
+        onSubmit={handleLostSubmit}
+      />
+
+      <LostPetDetailSheet
+        marker={selectedLostMarker}
+        userLocation={userLocation}
+        onClose={() => setSelectedLostMarker(null)}
       />
 
       <PetDetailSheet
@@ -190,7 +280,7 @@ export default function HomeScreen() {
           setPickerVisible(false);
         }}
         onResetLocation={() => setSightingLocation(userLocation)}
-        onSubmit={handleSubmit}
+        onSubmit={handleSightingSubmit}
       />
     </View>
   );

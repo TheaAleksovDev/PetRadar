@@ -1,3 +1,4 @@
+import { Camera, Plus, Search, Xmark } from "iconoir-react-native";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
@@ -22,7 +23,7 @@ export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
             activeOpacity={0.8}
           >
             <View style={[styles.menuIcon, { backgroundColor: "#1C1C1E" }]}>
-              <Text style={styles.menuEmoji}>📷</Text>
+              <Camera width={20} height={20} color="#fff" strokeWidth={1.8} />
             </View>
             <Text style={styles.menuLabel}>Забелязах любимец</Text>
           </TouchableOpacity>
@@ -33,7 +34,7 @@ export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
             activeOpacity={0.8}
           >
             <View style={[styles.menuIcon, { backgroundColor: "#EF4444" }]}>
-              <Text style={styles.menuEmoji}>🐾</Text>
+              <Search width={20} height={20} color="#fff" strokeWidth={1.8} />
             </View>
             <Text style={styles.menuLabel}>Търся любимец</Text>
           </TouchableOpacity>
@@ -45,7 +46,10 @@ export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
         onPress={onToggle}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabIcon}>{open ? "✕" : "+"}</Text>
+        {open
+          ? <Xmark width={24} height={24} color="#fff" strokeWidth={2} />
+          : <Plus width={26} height={26} color="#fff" strokeWidth={2} />
+        }
       </TouchableOpacity>
     </>
   );
@@ -67,12 +71,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
-  },
-  fabIcon: {
-    fontSize: 28,
-    color: "#fff",
-    lineHeight: 32,
-    fontWeight: "300",
   },
   menu: {
     position: "absolute",
@@ -104,7 +102,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  menuEmoji: { fontSize: 18 },
   menuLabel: {
     fontSize: 15,
     fontWeight: "500",
