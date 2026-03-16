@@ -6,4 +6,6 @@ export type SightingMarker = {
   color: string;
   breed: string;
   age: string;
+  imageUri: string;
+  createdAt: number;
 };

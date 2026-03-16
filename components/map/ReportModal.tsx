@@ -1,4 +1,6 @@
 import {
+  Dimensions,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,10 +13,13 @@ import LocationPicker from "./LocationPicker";
 import { AGES, BREEDS, COLORS } from "./constants";
 import type { Coords } from "./types";
 
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
 type Form = { color: string; breed: string; age: string };
 
 type Props = {
   visible: boolean;
+  imageUri: string;
   form: Form;
   sightingLocation: Coords;
   userLocation: Coords;
@@ -30,6 +35,7 @@ type Props = {
 
 export default function ReportModal({
   visible,
+  imageUri,
   form,
   sightingLocation,
   userLocation,
@@ -72,7 +78,12 @@ export default function ReportModal({
               <View style={{ width: 36 }} />
             </View>
 
-            <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+            <Image source={{ uri: imageUri }} style={styles.photo} />
+
+            <ScrollView
+              style={styles.body}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.formCard}>
                 <Dropdown
                   label="Цвят"
@@ -101,7 +112,9 @@ export default function ReportModal({
                   <View style={styles.locationLeft}>
                     <Text style={styles.locationLabel}>Къде е забелязано?</Text>
                     <Text style={styles.locationValue}>
-                      {isCustomLocation ? "Избрана локация" : "Текущата ми локация"}
+                      {isCustomLocation
+                        ? "Избрана локация"
+                        : "Текущата ми локация"}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -126,7 +139,10 @@ export default function ReportModal({
             </ScrollView>
 
             <TouchableOpacity
-              style={[styles.postBtn, !isFormComplete && styles.postBtnDisabled]}
+              style={[
+                styles.postBtn,
+                !isFormComplete && styles.postBtnDisabled,
+              ]}
               onPress={onSubmit}
               disabled={!isFormComplete}
               activeOpacity={0.85}
@@ -241,6 +257,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
+  },
+  photo: {
+    width: SCREEN_WIDTH,
+    height: 260,
+    resizeMode: "cover",
   },
   postBtnDisabled: { backgroundColor: "#93C5FD" },
   postBtnText: {
