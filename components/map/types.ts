@@ -8,4 +8,5 @@ export type SightingMarker = {
   age: string;
   imageUri: string;
   createdAt: number;
+  note?: string;
 };

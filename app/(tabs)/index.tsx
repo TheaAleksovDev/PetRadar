@@ -1,17 +1,18 @@
 import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import MapView, { PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 import CameraScreen from "@/components/map/CameraScreen";
 import FabMenu from "@/components/map/FabMenu";
+import PetDetailSheet from "@/components/map/PetDetailSheet";
 import PetMarker, { DOT_SIZE, MARKER_H, MARKER_W, PIN_H, PIN_W } from "@/components/map/PetMarker";
 import ReportModal from "@/components/map/ReportModal";
 import type { Coords, SightingMarker } from "@/components/map/types";
 
-type Form = { color: string; breed: string; age: string };
+type Form = { color: string; breed: string; age: string; note: string };
 
-const EMPTY_FORM: Form = { color: "", breed: "", age: "" };
+const EMPTY_FORM: Form = { color: "", breed: "", age: "", note: "" };
 
 export default function HomeScreen() {
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
@@ -45,6 +46,7 @@ export default function HomeScreen() {
     },
   ]);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
+  const [selectedMarker, setSelectedMarker] = useState<SightingMarker | null>(null);
   const [points, setPoints] = useState<Record<string, { x: number; y: number }>>({});
   const [latDelta, setLatDelta] = useState(0.01);
 
@@ -98,7 +100,16 @@ export default function HomeScreen() {
     if (!form.color || !form.breed || !form.age || !sightingLocation) return;
     setMarkers((prev) => [
       ...prev,
-      { id: Date.now().toString(), coordinate: sightingLocation, imageUri, createdAt: Date.now(), ...form },
+      {
+        id: Date.now().toString(),
+        coordinate: sightingLocation,
+        imageUri,
+        createdAt: Date.now(),
+        color: form.color,
+        breed: form.breed,
+        age: form.age,
+        note: form.note || undefined,
+      },
     ]);
     setReportVisible(false);
     setForm(EMPTY_FORM);
@@ -128,17 +139,18 @@ export default function HomeScreen() {
           const h = zoom === "full" ? MARKER_H : zoom === "pin" ? PIN_H : DOT_SIZE;
           const anchorY = zoom === "dot" ? h / 2 : h;
           return (
-            <View
+            <TouchableOpacity
               key={m.id}
               style={{
                 position: "absolute",
                 left: pt.x - w / 2,
                 top: pt.y - anchorY,
               }}
-              pointerEvents="none"
+              onPress={() => setSelectedMarker(m)}
+              activeOpacity={0.9}
             >
               <PetMarker marker={m} zoom={zoom} />
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -154,6 +166,12 @@ export default function HomeScreen() {
         visible={cameraVisible}
         onCapture={handleCapture}
         onClose={() => setCameraVisible(false)}
+      />
+
+      <PetDetailSheet
+        marker={selectedMarker}
+        userLocation={userLocation}
+        onClose={() => setSelectedMarker(null)}
       />
 
       <ReportModal

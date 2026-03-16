@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -15,7 +16,7 @@ import type { Coords } from "./types";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-type Form = { color: string; breed: string; age: string };
+type Form = { color: string; breed: string; age: string; note: string };
 
 type Props = {
   visible: boolean;
@@ -135,6 +136,19 @@ export default function ReportModal({
                     </Text>
                   </TouchableOpacity>
                 )}
+              </View>
+
+              <View style={styles.noteCard}>
+                <TextInput
+                  style={styles.noteInput}
+                  placeholder="Допълнителна бележка (по желание)"
+                  placeholderTextColor="#AEAEB2"
+                  value={form.note}
+                  onChangeText={(v) => onFormChange("note", v)}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
               </View>
             </ScrollView>
 
@@ -262,6 +276,19 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     height: 260,
     resizeMode: "cover",
+  },
+  noteCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  noteInput: {
+    fontSize: 15,
+    color: "#1C1C1E",
+    minHeight: 72,
   },
   postBtnDisabled: { backgroundColor: "#93C5FD" },
   postBtnText: {
