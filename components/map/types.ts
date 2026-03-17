@@ -11,6 +11,13 @@ export type SightingMarker = {
   note?: string;
 };
 
+export type Tip = {
+  id: string;
+  comment: string;
+  location?: Coords;
+  createdAt: number;
+};
+
 export type LostMarker = {
   id: string;
   coordinate: Coords;
@@ -22,4 +29,5 @@ export type LostMarker = {
   imageUri: string;
   createdAt: number;
   note?: string;
+  tips?: Tip[];
 };

@@ -7,7 +7,10 @@ import CameraScreen from "@/components/map/CameraScreen";
 import FabMenu from "@/components/map/FabMenu";
 import LostPetDetailSheet from "@/components/map/LostPetDetailSheet";
 import LostPetModal from "@/components/map/LostPetModal";
+import MatchModal from "@/components/map/MatchModal";
 import PetDetailSheet from "@/components/map/PetDetailSheet";
+import SightingMatchModal from "@/components/map/SightingMatchModal";
+import ThankYouModal from "@/components/map/ThankYouModal";
 import PetMarker, {
   DOT_SIZE,
   LOST_MARKER_H,
@@ -84,6 +87,12 @@ export default function HomeScreen() {
   const [lostModalVisible, setLostModalVisible] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<SightingMarker | null>(null);
   const [selectedLostMarker, setSelectedLostMarker] = useState<LostMarker | null>(null);
+  const [matchModalVisible, setMatchModalVisible] = useState(false);
+  const [matches, setMatches] = useState<LostMarker[]>([]);
+  const [sightingMatchVisible, setSightingMatchVisible] = useState(false);
+  const [sightingMatches, setSightingMatches] = useState<SightingMarker[]>([]);
+  const [thankYouVisible, setThankYouVisible] = useState(false);
+  const [afterThankYou, setAfterThankYou] = useState<(() => void) | null>(null);
   const [points, setPoints] = useState<Record<string, { x: number; y: number }>>({});
   const [latDelta, setLatDelta] = useState(0.01);
 
@@ -151,6 +160,53 @@ export default function HomeScreen() {
     ]);
     setReportVisible(false);
     setForm(EMPTY_FORM);
+
+    const norm = (s: string) => s.trim().toLowerCase();
+    const haversine = (a: Coords, b: Coords) => {
+      const R = 6371;
+      const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+      const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+      const s =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((a.latitude * Math.PI) / 180) *
+          Math.cos((b.latitude * Math.PI) / 180) *
+          Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+    };
+    const found = lostMarkers
+      .map((m) => ({
+        marker: m,
+        km: haversine(sightingLocation, m.coordinate),
+        score:
+          (norm(m.breed) === norm(form.breed) ? 2 : 0) +
+          (norm(m.color) === norm(form.color) ? 1 : 0),
+      }))
+      .filter(({ km }) => km <= 20)
+      .sort((a, b) => b.score - a.score || a.km - b.km)
+      .map(({ marker }) => marker)
+      .slice(0, 6);
+
+    const foundSightings = markers
+      .map((m) => ({
+        marker: m,
+        km: haversine(sightingLocation, m.coordinate),
+        score:
+          (norm(m.breed) === norm(form.breed) ? 2 : 0) +
+          (norm(m.color) === norm(form.color) ? 1 : 0),
+      }))
+      .filter(({ km }) => km <= 20)
+      .sort((a, b) => b.score - a.score || a.km - b.km)
+      .map(({ marker }) => marker)
+      .slice(0, 6);
+
+    if (found.length > 0) {
+      setMatches(found);
+      setSightingMatches(foundSightings);
+      setMatchModalVisible(true);
+    } else if (foundSightings.length > 0) {
+      setSightingMatches(foundSightings);
+      setSightingMatchVisible(true);
+    }
   };
 
   const handleLostSubmit = (
@@ -173,6 +229,18 @@ export default function HomeScreen() {
       },
     ]);
     setLostModalVisible(false);
+  };
+
+  const handleAddTip = (markerId: string, comment: string, location: Coords | null) => {
+    const tip = {
+      id: Date.now().toString(),
+      comment,
+      location: location ?? undefined,
+      createdAt: Date.now(),
+    };
+    setLostMarkers((prev) =>
+      prev.map((m) => (m.id === markerId ? { ...m, tips: [...(m.tips ?? []), tip] } : m))
+    );
   };
 
   if (!initialRegion || !userLocation) return null;
@@ -256,12 +324,55 @@ export default function HomeScreen() {
         marker={selectedLostMarker}
         userLocation={userLocation}
         onClose={() => setSelectedLostMarker(null)}
+        onSubmitTip={handleAddTip}
       />
 
       <PetDetailSheet
         marker={selectedMarker}
         userLocation={userLocation}
         onClose={() => setSelectedMarker(null)}
+      />
+
+      <MatchModal
+        visible={matchModalVisible}
+        matches={matches}
+        onSelect={(marker) => {
+          setMatchModalVisible(false);
+          setSelectedLostMarker(marker);
+        }}
+        onDismiss={() => {
+          setMatchModalVisible(false);
+          if (sightingMatches.length > 0) {
+            setSightingMatchVisible(true);
+          } else {
+            setThankYouVisible(true);
+          }
+        }}
+      />
+
+      <SightingMatchModal
+        visible={sightingMatchVisible}
+        matches={sightingMatches}
+        onSelect={(marker) => {
+          setSightingMatchVisible(false);
+          setAfterThankYou(() => () => setSelectedMarker(marker));
+          setThankYouVisible(true);
+        }}
+        onDismiss={() => {
+          setSightingMatchVisible(false);
+          setThankYouVisible(true);
+        }}
+      />
+
+      <ThankYouModal
+        visible={thankYouVisible}
+        onClose={() => {
+          setThankYouVisible(false);
+          if (afterThankYou) {
+            afterThankYou();
+            setAfterThankYou(null);
+          }
+        }}
       />
 
       <ReportModal

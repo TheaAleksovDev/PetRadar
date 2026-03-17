@@ -1,20 +1,22 @@
-import { useEffect, useRef } from "react";
-import { Phone, ShareAndroid } from "iconoir-react-native";
+import { ChatLines, MapPin, Phone, ShareAndroid } from "iconoir-react-native";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Image,
   Linking,
   Modal,
   PanResponder,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import type { Coords, LostMarker } from "./types";
+import LeaveCommentModal from "./LeaveCommentModal";
+import type { Coords, LostMarker, Tip } from "./types";
 
-const SHEET_HEIGHT = 460;
+const SHEET_HEIGHT = 600;
 const DRAG_THRESHOLD = 60;
 const LOST_COLOR = "#EF4444";
 
@@ -47,19 +49,28 @@ type Props = {
   marker: LostMarker | null;
   userLocation: Coords;
   onClose: () => void;
+  onSubmitTip?: (
+    markerId: string,
+    comment: string,
+    location: Coords | null,
+  ) => void;
 };
 
 export default function LostPetDetailSheet({
   marker,
   userLocation,
   onClose,
+  onSubmitTip,
 }: Props) {
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tips, setTips] = useState<Tip[]>([]);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
     if (marker) {
+      setTips(marker.tips ?? []);
       translateY.setValue(SHEET_HEIGHT);
       Animated.spring(translateY, {
         toValue: 0,
@@ -116,6 +127,18 @@ export default function LostPetDetailSheet({
       message: `Търси се ${marker.name} — ${marker.breed} (${marker.color}), ${marker.age}.\n на собственика: ${marker.phone}${marker.note ? `\n${marker.note}` : ""}`,
     });
 
+  const handleTipSubmit = (comment: string, location: Coords | null) => {
+    const newTip: Tip = {
+      id: Date.now().toString(),
+      comment,
+      location: location ?? undefined,
+      createdAt: Date.now(),
+    };
+    setTips((prev) => [...prev, newTip]);
+    setTipVisible(false);
+    onSubmitTip?.(marker.id, comment, location);
+  };
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={dismiss}>
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -126,7 +149,6 @@ export default function LostPetDetailSheet({
         />
 
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          {/* Drag zone */}
           <View {...panResponder.panHandlers}>
             <View style={styles.handle} />
             <View style={styles.header}>
@@ -139,73 +161,128 @@ export default function LostPetDetailSheet({
             </View>
           </View>
 
-          {/* Image + info grid */}
-          <View style={styles.content}>
-            <Image source={{ uri: marker.imageUri }} style={styles.image} />
-            <View style={styles.info}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Порода</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>
-                  {marker.breed}
-                </Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Цвят</Text>
-                <Text style={styles.infoValue}>{marker.color}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Възраст</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>
-                  {marker.age}
-                </Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Обявено</Text>
-                <Text style={styles.infoValue}>{time}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Разстояние</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>
-                  {dist}
-                </Text>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.content}>
+              <Image source={{ uri: marker.imageUri }} style={styles.image} />
+              <View style={styles.info}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Порода</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>
+                    {marker.breed}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Цвят</Text>
+                  <Text style={styles.infoValue}>{marker.color}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Възраст</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>
+                    {marker.age}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Обявено</Text>
+                  <Text style={styles.infoValue}>{time}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Разстояние</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>
+                    {dist}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Note */}
-          {marker.note ? (
-            <View style={styles.noteBox}>
-              <Text style={styles.noteLabel}>Бележка</Text>
-              <Text style={styles.noteText}>{marker.note}</Text>
-            </View>
-          ) : null}
-
-          {/* Action buttons */}
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.callBtn}
-              onPress={handleCall}
-              activeOpacity={0.8}
-            >
-              <View style={styles.actionBtnRow}>
-                <Phone width={18} height={18} color="#fff" strokeWidth={1.8} />
-                <Text style={styles.callBtnText}>Обади се</Text>
+            {marker.note ? (
+              <View style={styles.noteBox}>
+                <Text style={styles.noteLabel}>Бележка</Text>
+                <Text style={styles.noteText}>{marker.note}</Text>
               </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.shareBtn}
-              onPress={handleShare}
-              activeOpacity={0.8}
-            >
-              <ShareAndroid width={18} height={18} color="#fff" strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+            ) : null}
+
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.callBtn}
+                onPress={handleCall}
+                activeOpacity={0.8}
+              >
+                <View style={styles.actionBtnRow}>
+                  <Phone
+                    width={18}
+                    height={18}
+                    color="#fff"
+                    strokeWidth={1.8}
+                  />
+                  <Text style={styles.callBtnText}>Обади се</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => setTipVisible(true)}
+                activeOpacity={0.8}
+              >
+                <ChatLines width={18} height={18} color="#fff" strokeWidth={1.8} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={handleShare}
+                activeOpacity={0.8}
+              >
+                <ShareAndroid width={18} height={18} color="#fff" strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+
+            {tips.length > 0 && (
+              <View style={styles.tipsSection}>
+                <Text style={styles.tipsSectionLabel}>
+                  Коментари ({tips.length})
+                </Text>
+                {tips.map((tip) => (
+                  <View key={tip.id} style={styles.tipCard}>
+                    <View style={styles.tipRow}>
+                      <Text style={styles.tipComment}>{tip.comment}</Text>
+                      <Text style={styles.tipTime}>
+                        {timeAgo(tip.createdAt)}
+                      </Text>
+                    </View>
+                    {tip.location && (
+                      <TouchableOpacity
+                        style={styles.tipLocationRow}
+                        onPress={() =>
+                          Linking.openURL(
+                            `https://maps.google.com/maps?q=${tip.location!.latitude},${tip.location!.longitude}`
+                          )
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <MapPin width={12} height={12} color="#2563EB" strokeWidth={1.8} />
+                        <Text style={styles.tipLocationText}>Виж локацията</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
         </Animated.View>
       </View>
+
+      <LeaveCommentModal
+        visible={tipVisible}
+        userLocation={userLocation}
+        onSubmit={handleTipSubmit}
+        onClose={() => setTipVisible(false)}
+      />
     </Modal>
   );
 }
@@ -216,10 +293,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    maxHeight: "88%",
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 36,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
@@ -262,6 +339,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: LOST_COLOR,
     letterSpacing: 0.5,
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingBottom: 36,
   },
   content: {
     flexDirection: "row",
@@ -346,11 +429,68 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
   },
-  shareBtn: {
+  iconBtn: {
     width: 50,
     backgroundColor: "#1C1C1E",
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
+  },
+  tipBtn: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: "#FEF2F2",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  tipBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#EF4444",
+  },
+  tipsSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 8,
+  },
+  tipsSectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#AEAEB2",
+    marginBottom: 2,
+  },
+  tipCard: {
+    backgroundColor: "#F9F9F9",
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+  },
+  tipRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  tipComment: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1C1C1E",
+    lineHeight: 20,
+  },
+  tipTime: {
+    fontSize: 12,
+    color: "#AEAEB2",
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  tipLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  tipLocationText: {
+    fontSize: 12,
+    color: "#2563EB",
+    fontWeight: "500",
   },
 });
