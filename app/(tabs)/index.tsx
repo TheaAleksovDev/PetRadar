@@ -8,6 +8,7 @@ import FabMenu from "@/components/map/FabMenu";
 import LostPetDetailSheet from "@/components/map/LostPetDetailSheet";
 import LostPetModal from "@/components/map/LostPetModal";
 import MatchModal from "@/components/map/MatchModal";
+import PathNotification from "@/components/map/PathNotification";
 import PetDetailSheet from "@/components/map/PetDetailSheet";
 import SightingMatchModal from "@/components/map/SightingMatchModal";
 import ThankYouModal from "@/components/map/ThankYouModal";
@@ -27,6 +28,20 @@ import type { Coords, LostMarker, SightingMarker } from "@/components/map/types"
 
 type Form = { color: string; breed: string; age: string; note: string };
 const EMPTY_FORM: Form = { color: "", breed: "", age: "", note: "" };
+
+type PinnedChain = { id: string; chain: SightingMarker[]; color: string };
+const CHAIN_COLORS = ["#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
+
+function buildChain(marker: SightingMarker, allMarkers: SightingMarker[]): SightingMarker[] {
+  const chain: SightingMarker[] = [];
+  let current: SightingMarker | undefined = marker;
+  while (current) {
+    chain.unshift(current);
+    const parentId: string | undefined = current.connectedParent;
+    current = parentId ? allMarkers.find((m) => m.id === parentId) : undefined;
+  }
+  return chain;
+}
 
 export default function HomeScreen() {
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
@@ -86,13 +101,16 @@ export default function HomeScreen() {
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [lostModalVisible, setLostModalVisible] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<SightingMarker | null>(null);
+  const [selectedChain, setSelectedChain] = useState<SightingMarker[]>([]);
   const [selectedLostMarker, setSelectedLostMarker] = useState<LostMarker | null>(null);
   const [matchModalVisible, setMatchModalVisible] = useState(false);
   const [matches, setMatches] = useState<LostMarker[]>([]);
+  const [pendingSightingId, setPendingSightingId] = useState<string | null>(null);
   const [sightingMatchVisible, setSightingMatchVisible] = useState(false);
   const [sightingMatches, setSightingMatches] = useState<SightingMarker[]>([]);
   const [thankYouVisible, setThankYouVisible] = useState(false);
   const [afterThankYou, setAfterThankYou] = useState<(() => void) | null>(null);
+  const [pinnedChains, setPinnedChains] = useState<PinnedChain[]>([]);
   const [points, setPoints] = useState<Record<string, { x: number; y: number }>>({});
   const [latDelta, setLatDelta] = useState(0.01);
 
@@ -145,10 +163,12 @@ export default function HomeScreen() {
 
   const handleSightingSubmit = () => {
     if (!form.color || !form.breed || !form.age || !sightingLocation) return;
+    const newId = Date.now().toString();
+    setPendingSightingId(newId);
     setMarkers((prev) => [
       ...prev,
       {
-        id: Date.now().toString(),
+        id: newId,
         coordinate: sightingLocation,
         imageUri,
         createdAt: Date.now(),
@@ -174,6 +194,7 @@ export default function HomeScreen() {
       return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
     };
     const found = lostMarkers
+      .filter((m) => !m.connectedChild)
       .map((m) => ({
         marker: m,
         km: haversine(sightingLocation, m.coordinate),
@@ -187,6 +208,7 @@ export default function HomeScreen() {
       .slice(0, 6);
 
     const foundSightings = markers
+      .filter((m) => !m.connectedChild)
       .map((m) => ({
         marker: m,
         km: haversine(sightingLocation, m.coordinate),
@@ -231,6 +253,11 @@ export default function HomeScreen() {
     setLostModalVisible(false);
   };
 
+  const openSighting = (marker: SightingMarker) => {
+    setSelectedChain(buildChain(marker, markers));
+    setSelectedMarker(marker);
+  };
+
   const handleAddTip = (markerId: string, comment: string, location: Coords | null) => {
     const tip = {
       id: Date.now().toString(),
@@ -244,6 +271,18 @@ export default function HomeScreen() {
   };
 
   if (!initialRegion || !userLocation) return null;
+
+  const pathPinned = pinnedChains.length > 0;
+  const selectedChainId = selectedChain.length > 0 ? selectedChain[selectedChain.length - 1].id : null;
+  const currentChainPinned = pinnedChains.some((p) => p.id === selectedChainId);
+  const previewColor = CHAIN_COLORS[pinnedChains.length % CHAIN_COLORS.length];
+  const chainsToRender: PinnedChain[] = [
+    ...pinnedChains,
+    ...(selectedMarker && !currentChainPinned && selectedChain.length > 0
+      ? [{ id: "preview", chain: selectedChain, color: previewColor }]
+      : []),
+  ];
+  const allChainMarkerIds = new Set(chainsToRender.flatMap((pc) => pc.chain.map((m) => m.id)));
 
   return (
     <View style={styles.container}>
@@ -259,8 +298,60 @@ export default function HomeScreen() {
       />
 
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        {/* Sighting markers */}
-        {markers.map((m) => {
+        {chainsToRender.map(({ id, chain, color }) =>
+          chain.slice(1).map((m, i) => {
+            const p1 = points[chain[i].id];
+            const p2 = points[m.id];
+            if (!p1 || !p2) return null;
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            return (
+              <View
+                key={`line-${id}-${m.id}`}
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: (p1.x + p2.x) / 2 - length / 2,
+                  top: (p1.y + p2.y) / 2 - 1,
+                  width: length,
+                  height: 2,
+                  backgroundColor: color,
+                  opacity: 0.8,
+                  transform: [{ rotate: `${angle}deg` }],
+                }}
+              />
+            );
+          })
+        )}
+
+        {chainsToRender.map(({ id, chain, color }) =>
+          chain.map((m, idx) => {
+            const pt = points[m.id];
+            if (!pt) return null;
+            const isLast = idx === chain.length - 1;
+            return (
+              <View
+                key={`chainDot-${id}-${m.id}`}
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: pt.x - 7,
+                  top: pt.y - 7,
+                  width: 14,
+                  height: 14,
+                  borderRadius: 7,
+                  backgroundColor: isLast ? "#16A34A" : color,
+                  borderWidth: 2,
+                  borderColor: "#fff",
+                }}
+              />
+            );
+          })
+        )}
+
+        {markers.filter((m) => !m.connectedChild || allChainMarkerIds.has(m.id)).map((m) => {
           const pt = points[m.id];
           if (!pt) return null;
           const zoom = latDelta < 0.05 ? "full" : latDelta < 0.2 ? "pin" : "dot";
@@ -271,7 +362,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={m.id}
               style={{ position: "absolute", left: pt.x - w / 2, top: pt.y - anchorY }}
-              onPress={() => setSelectedMarker(m)}
+              onPress={() => openSighting(m)}
               activeOpacity={0.9}
             >
               <PetMarker marker={m} zoom={zoom} variant="sighting" />
@@ -279,8 +370,7 @@ export default function HomeScreen() {
           );
         })}
 
-        {/* Lost markers */}
-        {lostMarkers.map((m) => {
+        {lostMarkers.filter((m) => !m.connectedChild).map((m) => {
           const pt = points[m.id];
           if (!pt) return null;
           const zoom = latDelta < 0.05 ? "full" : latDelta < 0.2 ? "pin" : "dot";
@@ -299,6 +389,15 @@ export default function HomeScreen() {
           );
         })}
       </View>
+
+      {pathPinned && !selectedMarker && (
+        <PathNotification
+          chains={pinnedChains.map((pc) => ({
+            color: pc.color,
+            onDismiss: () => setPinnedChains((prev) => prev.filter((c) => c.id !== pc.id)),
+          }))}
+        />
+      )}
 
       <FabMenu
         open={fabOpen}
@@ -330,7 +429,22 @@ export default function HomeScreen() {
       <PetDetailSheet
         marker={selectedMarker}
         userLocation={userLocation}
-        onClose={() => setSelectedMarker(null)}
+        onClose={() => { setSelectedMarker(null); setSelectedChain([]); }}
+        chain={selectedChain}
+        pathPinned={currentChainPinned}
+        onTogglePath={(pinned) => {
+          const id = selectedChain[selectedChain.length - 1].id;
+          if (pinned) {
+            const color = CHAIN_COLORS[pinnedChains.length % CHAIN_COLORS.length];
+            setPinnedChains((prev) => [...prev, { id, chain: selectedChain, color }]);
+          } else {
+            setPinnedChains((prev) => prev.filter((p) => p.id !== id));
+          }
+        }}
+        pinnedChainsInfo={pinnedChains.map((pc) => ({
+          color: pc.color,
+          onDismiss: () => setPinnedChains((prev) => prev.filter((c) => c.id !== pc.id)),
+        }))}
       />
 
       <MatchModal
@@ -338,7 +452,18 @@ export default function HomeScreen() {
         matches={matches}
         onSelect={(marker) => {
           setMatchModalVisible(false);
-          setSelectedLostMarker(marker);
+          const sid = pendingSightingId;
+          if (sid) {
+            setMarkers((prev) =>
+              prev.map((m) => m.id === sid ? { ...m, connectedParent: marker.id } : m)
+            );
+            setLostMarkers((prev) =>
+              prev.map((m) => m.id === marker.id ? { ...m, connectedChild: sid } : m)
+            );
+            setPendingSightingId(null);
+            const newSighting = markers.find((m) => m.id === sid);
+            if (newSighting) openSighting(newSighting);
+          }
         }}
         onDismiss={() => {
           setMatchModalVisible(false);
@@ -355,7 +480,23 @@ export default function HomeScreen() {
         matches={sightingMatches}
         onSelect={(marker) => {
           setSightingMatchVisible(false);
-          setAfterThankYou(() => () => setSelectedMarker(marker));
+          const sid = pendingSightingId;
+          if (sid) {
+            const newSighting = markers.find((m) => m.id === sid);
+            const chain = buildChain(marker, markers);
+            if (newSighting) chain.push(newSighting);
+            setMarkers((prev) =>
+              prev.map((m) => {
+                if (m.id === sid) return { ...m, connectedParent: marker.id };
+                if (m.id === marker.id) return { ...m, connectedChild: sid };
+                return m;
+              })
+            );
+            setPendingSightingId(null);
+            if (newSighting) {
+              setAfterThankYou(() => () => { setSelectedChain(chain); setSelectedMarker(newSighting); });
+            }
+          }
           setThankYouVisible(true);
         }}
         onDismiss={() => {

@@ -12,7 +12,7 @@ const PIN_PAD = 3;
 const BADGE = 20;
 
 export const MARKER_W = W;
-export const MARKER_H = C + 102;
+export const MARKER_H = C + 19;
 export const PIN_W = PIN_CIRCLE + PIN_PAD * 2;
 export const PIN_H = PIN_CIRCLE + 2 + 8;
 export const DOT_SIZE = 12;

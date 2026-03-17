@@ -5,12 +5,14 @@ import {
   Image,
   Modal,
   PanResponder,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import PathNotification from "./PathNotification";
 import type { Coords, SightingMarker } from "./types";
 
 const SHEET_HEIGHT = 420;
@@ -45,13 +47,13 @@ type Props = {
   marker: SightingMarker | null;
   userLocation: Coords;
   onClose: () => void;
+  chain?: SightingMarker[];
+  pathPinned?: boolean;
+  onTogglePath?: (pinned: boolean) => void;
+  pinnedChainsInfo?: { color: string; onDismiss: () => void }[];
 };
 
-export default function PetDetailSheet({
-  marker,
-  userLocation,
-  onClose,
-}: Props) {
+export default function PetDetailSheet({ marker, userLocation, onClose, chain, pathPinned, onTogglePath, pinnedChainsInfo }: Props) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -106,6 +108,7 @@ export default function PetDetailSheet({
   const km = haversineKm(userLocation, marker.coordinate);
   const dist = formatDistance(km);
   const time = timeAgo(marker.createdAt);
+  const parents = chain && chain.length > 1 ? chain.slice(0, -1) : [];
 
   const handleShare = async () => {
     await Share.share({
@@ -116,74 +119,93 @@ export default function PetDetailSheet({
   return (
     <Modal visible transparent animationType="none" onRequestClose={dismiss}>
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={dismiss}
-        />
-        <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
-        >
-          {/* Drag zone: handle + header capture all vertical swipes */}
+        {pinnedChainsInfo && <PathNotification chains={pinnedChainsInfo} />}
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <View {...panResponder.panHandlers}>
             <View style={styles.handle} />
-
-            {/* Header: breed + badge */}
             <View style={styles.header}>
-              <Text style={styles.breed} numberOfLines={1}>
-                {marker.breed}
-              </Text>
+              <Text style={styles.breed} numberOfLines={1}>{marker.breed}</Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>ЗАБЕЛЯЗАН</Text>
               </View>
             </View>
           </View>
 
-          {/* Main content: image + info */}
-          <View style={styles.content}>
-            <Image source={{ uri: marker.imageUri }} style={styles.image} />
-            <View style={styles.info}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Цвят</Text>
-                <Text style={styles.infoValue}>{marker.color}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Възраст</Text>
-                <Text style={styles.infoValue}>{marker.age}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Кога</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>{time}</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Разстояние</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>{dist}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.content}>
+              <Image source={{ uri: marker.imageUri }} style={styles.image} />
+              <View style={styles.info}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Цвят</Text>
+                  <Text style={styles.infoValue}>{marker.color}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Възраст</Text>
+                  <Text style={styles.infoValue}>{marker.age}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Кога</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>{time}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Разстояние</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>{dist}</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Note */}
-          {marker.note ? (
-            <View style={styles.noteBox}>
-              <Text style={styles.noteLabel}>Бележка</Text>
-              <Text style={styles.noteText}>{marker.note}</Text>
-            </View>
-          ) : null}
+            {marker.note ? (
+              <View style={styles.noteBox}>
+                <Text style={styles.noteLabel}>Бележка</Text>
+                <Text style={styles.noteText}>{marker.note}</Text>
+              </View>
+            ) : null}
 
-          {/* Share button */}
-          <TouchableOpacity
-            style={styles.shareBtn}
-            onPress={handleShare}
-            activeOpacity={0.8}
-          >
-            <View style={styles.shareBtnRow}>
-              <ShareAndroid width={16} height={16} color="#fff" strokeWidth={2} />
-              <Text style={styles.shareBtnText}>Сподели</Text>
-            </View>
-          </TouchableOpacity>
+            {parents.length > 0 && (
+              <View style={styles.pathSection}>
+                <View style={styles.pathHeader}>
+                  <Text style={styles.pathLabel}>Маршрут ({chain!.length} засичания)</Text>
+                  <TouchableOpacity
+                    onPress={() => onTogglePath?.(!pathPinned)}
+                    style={[styles.pinBtn, pathPinned && styles.pinBtnActive]}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.pinBtnText}>
+                      {pathPinned ? "Скрий" : "Покажи на картата"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {parents.map((item, i) => (
+                  <View key={item.id} style={styles.pathItem}>
+                    <View style={styles.pathDotCol}>
+                      <View style={styles.pathDot} />
+                      {i < parents.length - 1 && <View style={styles.pathLine} />}
+                    </View>
+                    <Image source={{ uri: item.imageUri }} style={styles.pathImage} />
+                    <Text style={styles.pathTime}>{timeAgo(item.createdAt)}</Text>
+                  </View>
+                ))}
+                <View style={styles.pathItem}>
+                  <View style={styles.pathDotCol}>
+                    <View style={[styles.pathDot, styles.pathDotCurrent]} />
+                  </View>
+                  <Image source={{ uri: marker.imageUri }} style={styles.pathImage} />
+                  <Text style={styles.pathTime}>{time}</Text>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
+              <View style={styles.shareBtnRow}>
+                <ShareAndroid width={16} height={16} color="#fff" strokeWidth={2} />
+                <Text style={styles.shareBtnText}>Сподели</Text>
+              </View>
+            </TouchableOpacity>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -196,10 +218,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    maxHeight: "88%",
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 36,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
@@ -242,6 +264,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#16A34A",
     letterSpacing: 0.5,
+  },
+  scrollContent: {
+    paddingBottom: 36,
   },
   content: {
     flexDirection: "row",
@@ -303,6 +328,76 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#1C1C1E",
     lineHeight: 20,
+  },
+  pathSection: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+  },
+  pathHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  pathLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#AEAEB2",
+  },
+  pinBtn: {
+    backgroundColor: "#F59E0B",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  pinBtnActive: {
+    backgroundColor: "#1C1C1E",
+  },
+  pinBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  pathItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginBottom: 4,
+  },
+  pathDotCol: {
+    alignItems: "center",
+    width: 12,
+    paddingTop: 6,
+  },
+  pathDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#F59E0B",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  pathDotCurrent: {
+    backgroundColor: "#16A34A",
+  },
+  pathLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 24,
+    backgroundColor: "#F59E0B",
+    opacity: 0.4,
+    marginTop: 2,
+  },
+  pathImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+  },
+  pathTime: {
+    flex: 1,
+    fontSize: 13,
+    color: "#6C6C70",
+    paddingTop: 4,
   },
   shareBtn: {
     marginHorizontal: 16,

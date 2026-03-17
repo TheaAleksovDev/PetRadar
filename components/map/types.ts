@@ -9,6 +9,8 @@ export type SightingMarker = {
   imageUri: string;
   createdAt: number;
   note?: string;
+  connectedParent?: string;
+  connectedChild?: string;
 };
 
 export type Tip = {
@@ -30,4 +32,5 @@ export type LostMarker = {
   createdAt: number;
   note?: string;
   tips?: Tip[];
+  connectedChild?: string;
 };
