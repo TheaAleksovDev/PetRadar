@@ -2,7 +2,6 @@ import { NavArrowLeft, Undo } from "iconoir-react-native";
 import {
   Dimensions,
   Image,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,14 +9,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import BottomSheet from "./BottomSheet";
 import Dropdown from "./Dropdown";
 import LocationPicker from "./LocationPicker";
-import { AGES, BREEDS, COLORS } from "./constants";
+import { CAT_AGES, CAT_BREEDS, COLORS, DOG_AGES, DOG_BREEDS } from "./constants";
 import type { Coords } from "./types";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-type Form = { color: string; breed: string; age: string; note: string };
+type Form = { color: string; breed: string; age: string; note: string; petType: string };
 
 type Props = {
   visible: boolean;
@@ -50,10 +50,14 @@ export default function ReportModal({
   onResetLocation,
   onSubmit,
 }: Props) {
+  const petType = form.petType || "dog";
   const isFormComplete = form.color && form.breed && form.age;
   const isCustomLocation =
     sightingLocation.latitude !== userLocation.latitude ||
     sightingLocation.longitude !== userLocation.longitude;
+
+  const breedOptions = petType === "cat" ? CAT_BREEDS : DOG_BREEDS;
+  const ageOptions = petType === "cat" ? CAT_AGES : DOG_AGES;
 
   return (
     <>
@@ -64,13 +68,7 @@ export default function ReportModal({
         onClose={onClosePicker}
       />
 
-      <Modal
-        visible={visible}
-        transparent
-        animationType="slide"
-        onRequestClose={onClose}
-      >
-        <View style={styles.overlay}>
+      <BottomSheet visible={visible} onClose={onClose} maxHeight="85%">
           <View style={styles.card}>
             <View style={styles.header}>
               <TouchableOpacity onPress={onClose} style={styles.backBtn}>
@@ -86,6 +84,33 @@ export default function ReportModal({
               style={styles.body}
               showsVerticalScrollIndicator={false}
             >
+              <View style={styles.petTypeCard}>
+                <Text style={styles.petTypeLabel}>Вид животно</Text>
+                <View style={styles.petTypePills}>
+                  {([
+                    { val: "dog", label: "Куче", emoji: "🐕" },
+                    { val: "cat", label: "Коте", emoji: "🐱" },
+                    { val: "other", label: "Друго", emoji: "🐾" },
+                  ] as const).map(({ val, label, emoji }) => (
+                    <TouchableOpacity
+                      key={val}
+                      style={[styles.petTypePill, petType === val && styles.petTypePillActive]}
+                      onPress={() => {
+                        onFormChange("petType", val);
+                        onFormChange("breed", "");
+                        onFormChange("age", "");
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.petTypeEmoji}>{emoji}</Text>
+                      <Text style={[styles.petTypePillText, petType === val && styles.petTypePillTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               <View style={styles.formCard}>
                 <Dropdown
                   label="Цвят"
@@ -95,17 +120,30 @@ export default function ReportModal({
                   allowCustom
                 />
                 <View style={styles.divider} />
-                <Dropdown
-                  label="Порода"
-                  options={BREEDS}
-                  value={form.breed}
-                  onChange={(v) => onFormChange("breed", v)}
-                  allowCustom
-                />
+                {petType === "other" ? (
+                  <View style={styles.inputRow}>
+                    <Text style={styles.inputLabel}>Вид</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Опишете животното..."
+                      placeholderTextColor="#AEAEB2"
+                      value={form.breed}
+                      onChangeText={(v) => onFormChange("breed", v)}
+                    />
+                  </View>
+                ) : (
+                  <Dropdown
+                    label="Порода"
+                    options={breedOptions}
+                    value={form.breed}
+                    onChange={(v) => onFormChange("breed", v)}
+                    allowCustom
+                  />
+                )}
                 <View style={styles.divider} />
                 <Dropdown
                   label="Възраст"
-                  options={AGES}
+                  options={ageOptions}
                   value={form.age}
                   onChange={(v) => onFormChange("age", v)}
                   allowCustom
@@ -169,18 +207,12 @@ export default function ReportModal({
               <Text style={styles.postBtnText}>Публикувай</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
   card: {
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
@@ -208,6 +240,46 @@ const styles = StyleSheet.create({
     color: "#1C1C1E",
   },
   body: { paddingHorizontal: 16 },
+  petTypeCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  petTypeLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#AEAEB2",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  petTypePills: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  petTypePill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#F2F2F7",
+    gap: 4,
+  },
+  petTypePillActive: {
+    backgroundColor: "#1C1C1E",
+  },
+  petTypeEmoji: {
+    fontSize: 20,
+  },
+  petTypePillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  petTypePillTextActive: {
+    color: "#fff",
+  },
   formCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -218,6 +290,25 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: "#E5E5EA",
     marginLeft: 16,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#1C1C1E",
+    width: 56,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1C1C1E",
+    textAlign: "right",
   },
   locationCard: {
     backgroundColor: "#fff",

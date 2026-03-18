@@ -1,28 +1,40 @@
 import { HeartSolid } from "iconoir-react-native";
-import {
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
   visible: boolean;
+  petType?: "dog" | "cat" | "other";
   onClose: () => void;
 };
 
-export default function ThankYouModal({ visible, onClose }: Props) {
+export default function ThankYouModal({ visible, petType, onClose }: Props) {
+  const petLabel =
+    petType === "cat"
+      ? "изгубена котка"
+      : petType === "dog"
+        ? "изгубено куче"
+        : "изгубен любимец";
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.card}>
           <HeartSolid width={80} height={80} color="#EF4444" />
           <Text style={styles.title}>Благодаря ти!</Text>
           <Text style={styles.subtitle}>
-            Помагаш на изгубено куче да намери дома си. Всяко съобщение е от значение!
+            Помагаш на {petLabel} да намери дома си. Всяко съобщение е от
+            значение!
           </Text>
-          <TouchableOpacity style={styles.btn} onPress={onClose} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={onClose}
+            activeOpacity={0.85}
+          >
             <Text style={styles.btnText}>Затвори</Text>
           </TouchableOpacity>
         </View>

@@ -1,3 +1,5 @@
+import * as Location from "expo-location";
+import { ArrowLeft, Xmark } from "iconoir-react-native";
 import { useEffect, useState } from "react";
 import {
   Dimensions,
@@ -10,9 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Location from "expo-location";
-import { ArrowLeft, Xmark } from "iconoir-react-native";
 import type { SightingMarker } from "./types";
+import BottomSheet from "./BottomSheet";
 
 const CELL_W = (Dimensions.get("window").width - 16 * 2 - 12) / 2;
 
@@ -26,7 +27,10 @@ function timeAgo(ts: number): string {
 
 function formatAddress(geo: Location.LocationGeocodedAddress): string {
   const parts: string[] = [];
-  if (geo.street) parts.push(geo.streetNumber ? `${geo.street} ${geo.streetNumber}` : geo.street);
+  if (geo.street)
+    parts.push(
+      geo.streetNumber ? `${geo.street} ${geo.streetNumber}` : geo.street,
+    );
   if (geo.district) parts.push(geo.district);
   if (parts.length === 0 && geo.city) parts.push(geo.city);
   return parts.join(", ") || "Неизвестно";
@@ -40,7 +44,13 @@ type Props = {
   onBack?: () => void;
 };
 
-export default function SightingMatchModal({ visible, matches, onSelect, onDismiss, onBack }: Props) {
+export default function SightingMatchModal({
+  visible,
+  matches,
+  onSelect,
+  onDismiss,
+  onBack,
+}: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [preview, setPreview] = useState<SightingMarker | null>(null);
   const [previewLocation, setPreviewLocation] = useState("...");
@@ -65,14 +75,30 @@ export default function SightingMatchModal({ visible, matches, onSelect, onDismi
 
   return (
     <>
-      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
-        <TouchableOpacity style={styles.previewOverlay} activeOpacity={1} onPress={() => setPreview(null)}>
+      <Modal
+        visible={!!preview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreview(null)}
+      >
+        <TouchableOpacity
+          style={styles.previewOverlay}
+          activeOpacity={1}
+          onPress={() => setPreview(null)}
+        >
           <TouchableOpacity activeOpacity={1} onPress={() => {}}>
             <View style={styles.previewCard}>
-              <TouchableOpacity style={styles.previewClose} onPress={() => setPreview(null)} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.previewClose}
+                onPress={() => setPreview(null)}
+                activeOpacity={0.7}
+              >
                 <Xmark width={18} height={18} color="#6C6C70" strokeWidth={2} />
               </TouchableOpacity>
-              <Image source={{ uri: preview?.imageUri }} style={styles.previewImage} />
+              <Image
+                source={{ uri: preview?.imageUri }}
+                style={styles.previewImage}
+              />
               <ScrollView contentContainerStyle={styles.previewRows}>
                 <Text style={styles.previewBreed}>{preview?.breed}</Text>
                 {[
@@ -93,21 +119,29 @@ export default function SightingMatchModal({ visible, matches, onSelect, onDismi
         </TouchableOpacity>
       </Modal>
 
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleDismiss}>
-        <View style={styles.overlay}>
+      <BottomSheet visible={visible} onClose={handleDismiss} maxHeight="85%">
           <View style={styles.card}>
-            <View style={styles.handle} />
 
             {onBack && (
-              <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-                <ArrowLeft width={18} height={18} color="#16A34A" strokeWidth={2} />
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={onBack}
+                activeOpacity={0.7}
+              >
+                <ArrowLeft
+                  width={18}
+                  height={18}
+                  color="#16A34A"
+                  strokeWidth={2}
+                />
                 <Text style={styles.backBtnText}>Назад</Text>
               </TouchableOpacity>
             )}
 
             <Text style={styles.title}>Хора са го виждали!</Text>
             <Text style={styles.subtitle}>
-              Тези кучета са забелязани наблизо. Ако е същото — помогни ни да проследим пътя му!
+              Тези любимци са забелязани наблизо. Ако е същия — помогни ни да
+              проследим пътя му!
             </Text>
 
             <FlatList
@@ -131,24 +165,42 @@ export default function SightingMatchModal({ visible, matches, onSelect, onDismi
                       </View>
                     )}
                     <View>
-                      <Image source={{ uri: item.imageUri }} style={styles.cellImage} />
-                      <TouchableOpacity style={styles.viewBtn} onPress={() => setPreview(item)} activeOpacity={0.8}>
+                      <Image
+                        source={{ uri: item.imageUri }}
+                        style={styles.cellImage}
+                      />
+                      <TouchableOpacity
+                        style={styles.viewBtn}
+                        onPress={() => setPreview(item)}
+                        activeOpacity={0.8}
+                      >
                         <Text style={styles.viewBtnText}>Виж</Text>
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.cellBreed} numberOfLines={1}>{item.breed}</Text>
-                    <Text style={styles.cellColor} numberOfLines={1}>{item.color}</Text>
+                    <Text style={styles.cellBreed} numberOfLines={1}>
+                      {item.breed}
+                    </Text>
+                    <Text style={styles.cellColor} numberOfLines={1}>
+                      {item.color}
+                    </Text>
                   </TouchableOpacity>
                 );
               }}
             />
 
             <View style={styles.actions}>
-              <TouchableOpacity style={styles.dismissBtn} onPress={handleDismiss} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.dismissBtn}
+                onPress={handleDismiss}
+                activeOpacity={0.8}
+              >
                 <Text style={styles.dismissBtnText}>Не е същото</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.confirmBtn, !selected && styles.confirmBtnDisabled]}
+                style={[
+                  styles.confirmBtn,
+                  !selected && styles.confirmBtnDisabled,
+                ]}
                 onPress={handleConfirm}
                 disabled={!selected}
                 activeOpacity={0.85}
@@ -157,33 +209,17 @@ export default function SightingMatchModal({ visible, matches, onSelect, onDismi
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
   card: {
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 36,
-    maxHeight: "85%",
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#D1D1D6",
-    alignSelf: "center",
-    marginTop: 10,
-    marginBottom: 10,
   },
   backBtn: {
     flexDirection: "row",

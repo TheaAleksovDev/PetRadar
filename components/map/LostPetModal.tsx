@@ -5,7 +5,6 @@ import {
   Dimensions,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,9 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import BottomSheet from "./BottomSheet";
 import Dropdown from "./Dropdown";
 import LocationPicker from "./LocationPicker";
-import { AGES, BREEDS, COLORS } from "./constants";
+import { CAT_AGES, CAT_BREEDS, COLORS, DOG_AGES, DOG_BREEDS } from "./constants";
 import type { Coords } from "./types";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -28,6 +28,7 @@ type LostForm = {
   age: string;
   phone: string;
   note: string;
+  petType: "dog" | "cat" | "other";
 };
 
 const EMPTY: LostForm = {
@@ -37,6 +38,7 @@ const EMPTY: LostForm = {
   age: "",
   phone: "",
   note: "",
+  petType: "dog",
 };
 
 type Props = {
@@ -66,6 +68,9 @@ export default function LostPetModal({
 
   const isComplete =
     !!imageUri && !!form.name && !!form.color && !!form.breed && !!form.phone;
+
+  const breedOptions = form.petType === "cat" ? CAT_BREEDS : DOG_BREEDS;
+  const ageOptions = form.petType === "cat" ? CAT_AGES : DOG_AGES;
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -104,18 +109,9 @@ export default function LostPetModal({
         onClose={() => setPickerVisible(false)}
       />
 
-      <Modal
-        visible={visible}
-        transparent
-        animationType="slide"
-        onRequestClose={handleClose}
-      >
-        <KeyboardAvoidingView
-          style={styles.overlay}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+      <BottomSheet visible={visible} onClose={handleClose} maxHeight="92%">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.card}>
-            {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity onPress={handleClose} style={styles.backBtn}>
                 <NavArrowLeft width={26} height={26} color="#EF4444" strokeWidth={2} />
@@ -129,7 +125,6 @@ export default function LostPetModal({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Photo picker */}
               <TouchableOpacity
                 style={styles.photoPicker}
                 onPress={pickImage}
@@ -155,7 +150,31 @@ export default function LostPetModal({
                 )}
               </TouchableOpacity>
 
-              {/* Name + phone */}
+              <View style={styles.petTypeCard}>
+                <Text style={styles.petTypeLabel}>Вид животно</Text>
+                <View style={styles.petTypePills}>
+                  {([
+                    { val: "dog", label: "Куче", emoji: "🐕" },
+                    { val: "cat", label: "Коте", emoji: "🐱" },
+                    { val: "other", label: "Друго", emoji: "🐾" },
+                  ] as const).map(({ val, label, emoji }) => (
+                    <TouchableOpacity
+                      key={val}
+                      style={[styles.petTypePill, form.petType === val && styles.petTypePillActive]}
+                      onPress={() => {
+                        setForm((f) => ({ ...f, petType: val, breed: "", age: "" }));
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.petTypeEmoji}>{emoji}</Text>
+                      <Text style={[styles.petTypePillText, form.petType === val && styles.petTypePillTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               <View style={styles.formCard}>
                 <View style={styles.inputRow}>
                   <Text style={styles.inputLabel}>Име</Text>
@@ -170,7 +189,7 @@ export default function LostPetModal({
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.inputRow}>
-                  <Text style={styles.inputLabel}>Контакт телефон</Text>
+                  <Text style={styles.inputLabel}>Контакт</Text>
                   <TextInput
                     style={styles.textInput}
                     placeholder="+359 ..."
@@ -183,7 +202,6 @@ export default function LostPetModal({
                 </View>
               </View>
 
-              {/* Dropdowns */}
               <View style={styles.formCard}>
                 <Dropdown
                   label="Цвят"
@@ -193,24 +211,36 @@ export default function LostPetModal({
                   allowCustom
                 />
                 <View style={styles.divider} />
-                <Dropdown
-                  label="Порода"
-                  options={BREEDS}
-                  value={form.breed}
-                  onChange={(v) => set("breed", v)}
-                  allowCustom
-                />
+                {form.petType === "other" ? (
+                  <View style={styles.inputRow}>
+                    <Text style={styles.inputLabel}>Вид</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Опишете животното..."
+                      placeholderTextColor="#AEAEB2"
+                      value={form.breed}
+                      onChangeText={(v) => set("breed", v)}
+                    />
+                  </View>
+                ) : (
+                  <Dropdown
+                    label="Порода"
+                    options={breedOptions}
+                    value={form.breed}
+                    onChange={(v) => set("breed", v)}
+                    allowCustom
+                  />
+                )}
                 <View style={styles.divider} />
                 <Dropdown
                   label="Възраст"
-                  options={AGES}
+                  options={ageOptions}
                   value={form.age}
                   onChange={(v) => set("age", v)}
                   allowCustom
                 />
               </View>
 
-              {/* Last seen location */}
               <View style={styles.locationCard}>
                 <View style={styles.locationRow}>
                   <View style={styles.locationLeft}>
@@ -242,7 +272,6 @@ export default function LostPetModal({
                 )}
               </View>
 
-              {/* Note */}
               <View style={styles.noteCard}>
                 <TextInput
                   style={styles.noteInput}
@@ -267,17 +296,12 @@ export default function LostPetModal({
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
   card: {
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
@@ -306,7 +330,6 @@ const styles = StyleSheet.create({
   },
   body: { paddingHorizontal: 16 },
 
-  // Photo
   photoPicker: {
     borderRadius: 16,
     overflow: "hidden",
@@ -344,7 +367,47 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Cards
+  petTypeCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  petTypeLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#AEAEB2",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  petTypePills: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  petTypePill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#F2F2F7",
+    gap: 4,
+  },
+  petTypePillActive: {
+    backgroundColor: "#1C1C1E",
+  },
+  petTypeEmoji: {
+    fontSize: 20,
+  },
+  petTypePillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1C1C1E",
+  },
+  petTypePillTextActive: {
+    color: "#fff",
+  },
+
   formCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -376,7 +439,6 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 
-  // Location
   locationCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -428,7 +490,6 @@ const styles = StyleSheet.create({
     color: "#EF4444",
   },
 
-  // Note
   noteCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -443,7 +504,6 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
 
-  // Submit
   postBtn: {
     marginHorizontal: 16,
     marginTop: 8,

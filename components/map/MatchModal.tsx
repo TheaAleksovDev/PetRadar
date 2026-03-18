@@ -13,6 +13,7 @@ import {
 import * as Location from "expo-location";
 import { Xmark } from "iconoir-react-native";
 import type { LostMarker } from "./types";
+import BottomSheet from "./BottomSheet";
 
 const CELL_W = (Dimensions.get("window").width - 16 * 2 - 12) / 2;
 
@@ -94,11 +95,8 @@ export default function MatchModal({ visible, matches, onSelect, onDismiss }: Pr
         </TouchableOpacity>
       </Modal>
 
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleDismiss}>
-        <View style={styles.overlay}>
+      <BottomSheet visible={visible} onClose={handleDismiss} maxHeight="85%">
           <View style={styles.card}>
-            <View style={styles.handle} />
-
             <Text style={styles.title}>Познаваш ли го?</Text>
             <Text style={styles.subtitle}>
               Тези кучета са обявени за изгубени наблизо. Видя ли някое от тях?
@@ -147,33 +145,18 @@ export default function MatchModal({ visible, matches, onSelect, onDismiss }: Pr
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
   card: {
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 36,
     maxHeight: "85%",
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#D1D1D6",
-    alignSelf: "center",
-    marginTop: 10,
-    marginBottom: 10,
   },
   title: {
     fontSize: 20,

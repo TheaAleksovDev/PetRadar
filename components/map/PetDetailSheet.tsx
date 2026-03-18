@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import PathNotification from "./PathNotification";
 import type { Coords, SightingMarker } from "./types";
 
 const SHEET_HEIGHT = 420;
@@ -53,7 +52,7 @@ type Props = {
   pinnedChainsInfo?: { color: string; onDismiss: () => void }[];
 };
 
-export default function PetDetailSheet({ marker, userLocation, onClose, chain, pathPinned, onTogglePath, pinnedChainsInfo }: Props) {
+export default function PetDetailSheet({ marker, userLocation, onClose, chain, pathPinned, onTogglePath }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const onCloseRef = useRef(onClose);
@@ -130,7 +129,6 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
 
       <Modal visible transparent animationType="none" onRequestClose={dismiss}>
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          {pinnedChainsInfo && <PathNotification chains={pinnedChainsInfo} />}
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
           <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
             <View {...panResponder.panHandlers}>

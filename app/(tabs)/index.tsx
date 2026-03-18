@@ -1,14 +1,15 @@
 import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, BackHandler, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FilterList, List, Map } from "iconoir-react-native";
 import MapView, { PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 import CameraScreen from "@/components/map/CameraScreen";
+import PathNotification from "@/components/map/PathNotification";
 import FabMenu from "@/components/map/FabMenu";
 import LostPetDetailSheet from "@/components/map/LostPetDetailSheet";
 import LostPetModal from "@/components/map/LostPetModal";
 import MatchModal from "@/components/map/MatchModal";
-import PathNotification from "@/components/map/PathNotification";
 import PetDetailSheet from "@/components/map/PetDetailSheet";
 import SightingMatchModal from "@/components/map/SightingMatchModal";
 import ThankYouModal from "@/components/map/ThankYouModal";
@@ -24,10 +25,11 @@ import PetMarker, {
   PIN_W,
 } from "@/components/map/PetMarker";
 import ReportModal from "@/components/map/ReportModal";
+import FiltersModal, { DEFAULT_FILTERS, type FilterState } from "@/components/map/FiltersModal";
 import type { Coords, LostMarker, SightingMarker } from "@/components/map/types";
 
-type Form = { color: string; breed: string; age: string; note: string };
-const EMPTY_FORM: Form = { color: "", breed: "", age: "", note: "" };
+type Form = { color: string; breed: string; age: string; note: string; petType: string };
+const EMPTY_FORM: Form = { color: "", breed: "", age: "", note: "", petType: "dog" };
 
 type PinnedChain = { id: string; chain: SightingMarker[]; color: string };
 const CHAIN_COLORS = ["#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
@@ -136,12 +138,33 @@ export default function HomeScreen() {
   const [sightingMatchVisible, setSightingMatchVisible] = useState(false);
   const [sightingMatches, setSightingMatches] = useState<SightingMarker[]>([]);
   const [thankYouVisible, setThankYouVisible] = useState(false);
+  const [thankYouPetType, setThankYouPetType] = useState<"dog" | "cat" | "other">("dog");
   const [afterThankYou, setAfterThankYou] = useState<(() => void) | null>(null);
   const [pinnedChains, setPinnedChains] = useState<PinnedChain[]>([SEED_HUSKY_CHAIN]);
   const [points, setPoints] = useState<Record<string, { x: number; y: number }>>({});
   const [latDelta, setLatDelta] = useState(0.01);
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
   const mapRef = useRef<MapView>(null);
+  const animToggle = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(animToggle, {
+      toValue: filters.view === "list" ? 34 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [filters.view, animToggle]);
+
+  useEffect(() => {
+    if (filters.view !== "list") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setFilters((f) => ({ ...f, view: "map" }));
+      return true;
+    });
+    return () => sub.remove();
+  }, [filters.view]);
 
   useEffect(() => {
     (async () => {
@@ -203,6 +226,7 @@ export default function HomeScreen() {
         breed: form.breed,
         age: form.age,
         note: form.note || undefined,
+        petType: (form.petType as "dog" | "cat" | "other") || "dog",
       },
     ]);
     setReportVisible(false);
@@ -220,8 +244,9 @@ export default function HomeScreen() {
           Math.sin(dLon / 2) ** 2;
       return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
     };
+    const newPetType = form.petType || "dog";
     const found = lostMarkers
-      .filter((m) => !m.connectedChild)
+      .filter((m) => !m.connectedChild && (m.petType ?? "dog") === newPetType)
       .map((m) => ({
         marker: m,
         km: haversine(sightingLocation, m.coordinate),
@@ -235,7 +260,7 @@ export default function HomeScreen() {
       .slice(0, 6);
 
     const foundSightings = markers
-      .filter((m) => !m.connectedChild)
+      .filter((m) => !m.connectedChild && (m.petType ?? "dog") === newPetType)
       .map((m) => ({
         marker: m,
         km: haversine(sightingLocation, m.coordinate),
@@ -248,18 +273,22 @@ export default function HomeScreen() {
       .map(({ marker }) => marker)
       .slice(0, 6);
 
+    setThankYouPetType(newPetType as "dog" | "cat" | "other");
     if (found.length > 0) {
       setMatches(found);
       setSightingMatches(foundSightings);
       setMatchModalVisible(true);
     } else if (foundSightings.length > 0) {
+      setMatches([]);
       setSightingMatches(foundSightings);
       setSightingMatchVisible(true);
+    } else {
+      setThankYouVisible(true);
     }
   };
 
   const handleLostSubmit = (
-    data: { name: string; color: string; breed: string; age: string; phone: string; note: string; imageUri: string },
+    data: { name: string; color: string; breed: string; age: string; phone: string; note: string; imageUri: string; petType?: string },
     location: Coords
   ) => {
     setLostMarkers((prev) => [
@@ -275,6 +304,7 @@ export default function HomeScreen() {
         age: data.age,
         phone: data.phone,
         note: data.note || undefined,
+        petType: (data.petType as "dog" | "cat" | "other") || "dog",
       },
     ]);
     setLostModalVisible(false);
@@ -299,8 +329,7 @@ export default function HomeScreen() {
 
   if (!initialRegion || !userLocation) return null;
 
-  const pathPinned = pinnedChains.length > 0;
-  const selectedChainId = selectedChain.length > 0 ? selectedChain[selectedChain.length - 1].id : null;
+const selectedChainId = selectedChain.length > 0 ? selectedChain[selectedChain.length - 1].id : null;
   const currentChainPinned = pinnedChains.some((p) => p.id === selectedChainId);
   const previewColor = CHAIN_COLORS[pinnedChains.length % CHAIN_COLORS.length];
   const chainsToRender: PinnedChain[] = [
@@ -310,6 +339,31 @@ export default function HomeScreen() {
       : []),
   ];
   const allChainMarkerIds = new Set(chainsToRender.flatMap((pc) => pc.chain.map((m) => m.id)));
+
+  const haversineKm = (a: Coords, b: Coords) => {
+    const R = 6371;
+    const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+    const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos((a.latitude * Math.PI) / 180) * Math.cos((b.latitude * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  };
+
+  const visibleSightings = markers
+    .filter(() => filters.show !== "missing")
+    .filter((m) => filters.petType === "all" || (m.petType ?? "dog") === filters.petType);
+  const visibleLost = lostMarkers
+    .filter(() => filters.show !== "seen")
+    .filter((m) => filters.petType === "all" || (m.petType ?? "dog") === filters.petType);
+
+  type ListItem = { type: "seen"; marker: SightingMarker } | { type: "lost"; marker: LostMarker };
+  const listItems: ListItem[] = [
+    ...visibleSightings.map((m) => ({ type: "seen" as const, marker: m })),
+    ...visibleLost.map((m) => ({ type: "lost" as const, marker: m })),
+  ];
+  if (filters.sortBy === "recent") listItems.sort((a, b) => b.marker.createdAt - a.marker.createdAt);
+  else if (filters.sortBy === "distance") listItems.sort((a, b) => haversineKm(userLocation, a.marker.coordinate) - haversineKm(userLocation, b.marker.coordinate));
+  else if (filters.sortBy === "engagement") listItems.sort((a, b) => ((b.marker as LostMarker).tips?.length ?? 0) - ((a.marker as LostMarker).tips?.length ?? 0));
+  else if (filters.sortBy === "type") listItems.sort((a, b) => a.type === b.type ? 0 : a.type === "seen" ? -1 : 1);
 
   return (
     <View style={styles.container}>
@@ -378,7 +432,7 @@ export default function HomeScreen() {
           })
         )}
 
-        {markers.filter((m) => !m.connectedChild || allChainMarkerIds.has(m.id)).map((m) => {
+        {visibleSightings.filter((m) => !m.connectedChild || allChainMarkerIds.has(m.id)).map((m) => {
           const pt = points[m.id];
           if (!pt) return null;
           const zoom = latDelta < 0.05 ? "full" : latDelta < 0.2 ? "pin" : "dot";
@@ -397,7 +451,7 @@ export default function HomeScreen() {
           );
         })}
 
-        {lostMarkers.filter((m) => !m.connectedChild).map((m) => {
+        {visibleLost.filter((m) => !m.connectedChild).map((m) => {
           const pt = points[m.id];
           if (!pt) return null;
           const zoom = latDelta < 0.05 ? "full" : latDelta < 0.2 ? "pin" : "dot";
@@ -417,7 +471,48 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {pathPinned && !selectedMarker && (
+      {filters.view === "list" && (
+        <View style={styles.listOverlay}>
+          <FlatList
+            data={listItems}
+            keyExtractor={(item) => item.marker.id}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => {
+              const isLost = item.type === "lost";
+              const m = item.marker;
+              const km = haversineKm(userLocation, m.coordinate);
+              const dist = km < 1 ? `${Math.round(km * 1000)}м.` : `${km.toFixed(1)}км.`;
+              const diff = Math.floor((Date.now() - m.createdAt) / 1000);
+              const time = diff < 3600 ? `${Math.floor(diff / 60)}м. ago` : diff < 86400 ? `${Math.floor(diff / 3600)}ч. ago` : `${Math.floor(diff / 86400)}д. ago`;
+              return (
+                <TouchableOpacity
+                  style={styles.listCard}
+                  activeOpacity={0.85}
+                  onPress={() => isLost ? setSelectedLostMarker(m as LostMarker) : openSighting(m as SightingMarker)}
+                >
+                  <Image source={{ uri: m.imageUri }} style={styles.listImage} />
+                  <View style={styles.listInfo}>
+                    <View style={styles.listTopRow}>
+                      <Text style={styles.listBreed} numberOfLines={1}>
+                        {isLost ? (m as LostMarker).name : (m as SightingMarker).breed}
+                      </Text>
+                      <View style={[styles.listBadge, isLost ? styles.listBadgeLost : styles.listBadgeSeen]}>
+                        <Text style={[styles.listBadgeText, isLost ? styles.listBadgeTextLost : styles.listBadgeTextSeen]}>
+                          {isLost ? "ТЪРСИ СЕ" : "ЗАБЕЛЯЗАН"}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.listSub} numberOfLines={1}>{m.color} · {m.breed}</Text>
+                    <Text style={styles.listMeta}>{time} · {dist} от теб</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
+
+      {pinnedChains.length > 0 && filters.view !== "list" && (
         <PathNotification
           chains={pinnedChains.map((pc) => ({
             color: pc.color,
@@ -425,6 +520,25 @@ export default function HomeScreen() {
           }))}
         />
       )}
+
+      <View style={styles.topRightControls}>
+        <TouchableOpacity
+          style={styles.viewToggle}
+          onPress={() => setFilters((f) => ({ ...f, view: f.view === "map" ? "list" : "map" }))}
+          activeOpacity={1}
+        >
+          <Animated.View style={[styles.viewToggleIndicator, { transform: [{ translateX: animToggle }] }]} />
+          <View style={styles.viewToggleIcon}>
+            <Map width={16} height={16} color={filters.view === "map" ? "#fff" : "#6C6C70"} strokeWidth={2} />
+          </View>
+          <View style={styles.viewToggleIcon}>
+            <List width={16} height={16} color={filters.view === "list" ? "#fff" : "#6C6C70"} strokeWidth={2} />
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.filterBtn} onPress={() => setFiltersVisible(true)} activeOpacity={0.85}>
+          <FilterList width={16} height={16} color="#1C1C1E" strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
 
       <FabMenu
         open={fabOpen}
@@ -535,6 +649,7 @@ export default function HomeScreen() {
 
       <ThankYouModal
         visible={thankYouVisible}
+        petType={thankYouPetType}
         onClose={() => {
           setThankYouVisible(false);
           if (afterThankYou) {
@@ -542,6 +657,13 @@ export default function HomeScreen() {
             setAfterThankYou(null);
           }
         }}
+      />
+
+      <FiltersModal
+        visible={filtersVisible}
+        filters={filters}
+        onApply={(f) => { setFilters(f); setPinnedChains([]); }}
+        onClose={() => setFiltersVisible(false)}
       />
 
       <ReportModal
@@ -569,4 +691,124 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  topRightControls: {
+    position: "absolute",
+    top: 52,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  viewToggle: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 4,
+    gap: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  viewToggleIndicator: {
+    position: "absolute",
+    left: 4,
+    top: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#1C1C1E",
+  },
+  viewToggleIcon: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  listOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#F2F2F7",
+  },
+  listContent: {
+    paddingTop: 100,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  listCard: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  listImage: {
+    width: 90,
+    height: 90,
+  },
+  listInfo: {
+    flex: 1,
+    padding: 12,
+    justifyContent: "space-between",
+  },
+  listTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  listBreed: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1C1C1E",
+    flex: 1,
+  },
+  listBadge: {
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+  },
+  listBadgeSeen: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#86EFAC",
+  },
+  listBadgeLost: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "#FCA5A5",
+  },
+  listBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  listBadgeTextSeen: { color: "#16A34A" },
+  listBadgeTextLost: { color: "#EF4444" },
+  listSub: {
+    fontSize: 13,
+    color: "#6C6C70",
+    marginTop: 4,
+  },
+  listMeta: {
+    fontSize: 12,
+    color: "#AEAEB2",
+    marginTop: 2,
+  },
 });
