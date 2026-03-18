@@ -505,6 +505,7 @@ export default function HomeScreen() {
       <SightingMatchModal
         visible={sightingMatchVisible}
         matches={sightingMatches}
+        onBack={matches.length > 0 ? () => { setSightingMatchVisible(false); setMatchModalVisible(true); } : undefined}
         onSelect={(marker) => {
           setSightingMatchVisible(false);
           const sid = pendingSightingId;
