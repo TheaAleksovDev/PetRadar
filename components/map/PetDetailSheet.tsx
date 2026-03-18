@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { ShareAndroid } from "iconoir-react-native";
+import { useEffect, useRef, useState } from "react";
+import { Expand, ShareAndroid, Xmark } from "iconoir-react-native";
 import {
   Animated,
   Image,
@@ -54,6 +54,7 @@ type Props = {
 };
 
 export default function PetDetailSheet({ marker, userLocation, onClose, chain, pathPinned, onTogglePath, pinnedChainsInfo }: Props) {
+  const [fullscreen, setFullscreen] = useState(false);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -117,98 +118,114 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
   };
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={dismiss}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        {pinnedChainsInfo && <PathNotification chains={pinnedChainsInfo} />}
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View {...panResponder.panHandlers}>
-            <View style={styles.handle} />
-            <View style={styles.header}>
-              <Text style={styles.breed} numberOfLines={1}>{marker.breed}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>ЗАБЕЛЯЗАН</Text>
-              </View>
-            </View>
-          </View>
+    <>
+      <Modal visible={fullscreen} transparent animationType="fade" onRequestClose={() => setFullscreen(false)}>
+        <View style={styles.fsOverlay}>
+          <Image source={{ uri: marker.imageUri }} style={styles.fsImage} resizeMode="contain" />
+          <TouchableOpacity style={styles.fsClose} onPress={() => setFullscreen(false)} activeOpacity={0.8}>
+            <Xmark width={20} height={20} color="#fff" strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            <View style={styles.content}>
-              <Image source={{ uri: marker.imageUri }} style={styles.image} />
-              <View style={styles.info}>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Цвят</Text>
-                  <Text style={styles.infoValue}>{marker.color}</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Възраст</Text>
-                  <Text style={styles.infoValue}>{marker.age}</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Кога</Text>
-                  <Text style={styles.infoValue} numberOfLines={2}>{time}</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Разстояние</Text>
-                  <Text style={styles.infoValue} numberOfLines={2}>{dist}</Text>
+      <Modal visible transparent animationType="none" onRequestClose={dismiss}>
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {pinnedChainsInfo && <PathNotification chains={pinnedChainsInfo} />}
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
+          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+            <View {...panResponder.panHandlers}>
+              <View style={styles.handle} />
+              <View style={styles.header}>
+                <Text style={styles.breed} numberOfLines={1}>{marker.breed}</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>ЗАБЕЛЯЗАН</Text>
                 </View>
               </View>
             </View>
 
-            {marker.note ? (
-              <View style={styles.noteBox}>
-                <Text style={styles.noteLabel}>Бележка</Text>
-                <Text style={styles.noteText}>{marker.note}</Text>
-              </View>
-            ) : null}
-
-            {parents.length > 0 && (
-              <View style={styles.pathSection}>
-                <View style={styles.pathHeader}>
-                  <Text style={styles.pathLabel}>Маршрут ({chain!.length} засичания)</Text>
-                  <TouchableOpacity
-                    onPress={() => onTogglePath?.(!pathPinned)}
-                    style={[styles.pinBtn, pathPinned && styles.pinBtnActive]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.pinBtnText}>
-                      {pathPinned ? "Скрий" : "Покажи на картата"}
-                    </Text>
-                  </TouchableOpacity>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+              <View style={styles.content}>
+                <TouchableOpacity onPress={() => setFullscreen(true)} activeOpacity={0.85}>
+                  <Image source={{ uri: marker.imageUri }} style={styles.image} />
+                  <View style={styles.expandBtn}>
+                    <Expand width={14} height={14} color="#fff" strokeWidth={2} />
+                  </View>
+                </TouchableOpacity>
+                <View style={styles.info}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Цвят</Text>
+                    <Text style={styles.infoValue}>{marker.color}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Възраст</Text>
+                    <Text style={styles.infoValue}>{marker.age}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Кога</Text>
+                    <Text style={styles.infoValue} numberOfLines={2}>{time}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Разстояние</Text>
+                    <Text style={styles.infoValue} numberOfLines={2}>{dist}</Text>
+                  </View>
                 </View>
-                {parents.map((item, i) => (
-                  <View key={item.id} style={styles.pathItem}>
-                    <View style={styles.pathDotCol}>
-                      <View style={styles.pathDot} />
-                      {i < parents.length - 1 && <View style={styles.pathLine} />}
+              </View>
+
+              {marker.note ? (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteLabel}>Бележка</Text>
+                  <Text style={styles.noteText}>{marker.note}</Text>
+                </View>
+              ) : null}
+
+              {parents.length > 0 && (
+                <View style={styles.pathSection}>
+                  <View style={styles.pathHeader}>
+                    <Text style={styles.pathLabel}>Маршрут ({chain!.length} засичания)</Text>
+                    <TouchableOpacity
+                      onPress={() => onTogglePath?.(!pathPinned)}
+                      style={[styles.pinBtn, pathPinned && styles.pinBtnActive]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.pinBtnText}>
+                        {pathPinned ? "Скрий" : "Покажи на картата"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {parents.map((item, i) => (
+                    <View key={item.id} style={styles.pathItem}>
+                      <View style={styles.pathDotCol}>
+                        <View style={styles.pathDot} />
+                        {i < parents.length - 1 && <View style={styles.pathLine} />}
+                      </View>
+                      <Image source={{ uri: item.imageUri }} style={styles.pathImage} />
+                      <Text style={styles.pathTime}>{timeAgo(item.createdAt)}</Text>
                     </View>
-                    <Image source={{ uri: item.imageUri }} style={styles.pathImage} />
-                    <Text style={styles.pathTime}>{timeAgo(item.createdAt)}</Text>
+                  ))}
+                  <View style={styles.pathItem}>
+                    <View style={styles.pathDotCol}>
+                      <View style={[styles.pathDot, styles.pathDotCurrent]} />
+                    </View>
+                    <Image source={{ uri: marker.imageUri }} style={styles.pathImage} />
+                    <Text style={styles.pathTime}>{time}</Text>
                   </View>
-                ))}
-                <View style={styles.pathItem}>
-                  <View style={styles.pathDotCol}>
-                    <View style={[styles.pathDot, styles.pathDotCurrent]} />
-                  </View>
-                  <Image source={{ uri: marker.imageUri }} style={styles.pathImage} />
-                  <Text style={styles.pathTime}>{time}</Text>
                 </View>
-              </View>
-            )}
+              )}
 
-            <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
-              <View style={styles.shareBtnRow}>
-                <ShareAndroid width={16} height={16} color="#fff" strokeWidth={2} />
-                <Text style={styles.shareBtnText}>Сподели</Text>
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+              <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
+                <View style={styles.shareBtnRow}>
+                  <ShareAndroid width={16} height={16} color="#fff" strokeWidth={2} />
+                  <Text style={styles.shareBtnText}>Сподели</Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -278,6 +295,17 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 16,
+  },
+  expandBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   info: {
     flex: 1,
@@ -415,5 +443,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#fff",
+  },
+  fsOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fsImage: {
+    width: "100%",
+    height: "100%",
+  },
+  fsClose: {
+    position: "absolute",
+    top: 52,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -1,4 +1,4 @@
-import { ChatLines, MapPin, Phone, ShareAndroid } from "iconoir-react-native";
+import { ChatLines, Expand, MapPin, Phone, ShareAndroid, Xmark } from "iconoir-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -49,21 +49,13 @@ type Props = {
   marker: LostMarker | null;
   userLocation: Coords;
   onClose: () => void;
-  onSubmitTip?: (
-    markerId: string,
-    comment: string,
-    location: Coords | null,
-  ) => void;
+  onSubmitTip?: (markerId: string, comment: string, location: Coords | null) => void;
 };
 
-export default function LostPetDetailSheet({
-  marker,
-  userLocation,
-  onClose,
-  onSubmitTip,
-}: Props) {
+export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitTip }: Props) {
   const [tipVisible, setTipVisible] = useState(false);
   const [tips, setTips] = useState<Tip[]>([]);
+  const [fullscreen, setFullscreen] = useState(false);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -140,150 +132,133 @@ export default function LostPetDetailSheet({
   };
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={dismiss}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={dismiss}
-        />
+    <>
+      <Modal visible={fullscreen} transparent animationType="fade" onRequestClose={() => setFullscreen(false)}>
+        <View style={styles.fsOverlay}>
+          <Image source={{ uri: marker.imageUri }} style={styles.fsImage} resizeMode="contain" />
+          <TouchableOpacity style={styles.fsClose} onPress={() => setFullscreen(false)} activeOpacity={0.8}>
+            <Xmark width={20} height={20} color="#fff" strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View {...panResponder.panHandlers}>
-            <View style={styles.handle} />
-            <View style={styles.header}>
-              <Text style={styles.name} numberOfLines={1}>
-                {marker.name}
-              </Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>ТЪРСИ СЕ</Text>
-              </View>
-            </View>
-          </View>
+      <Modal visible transparent animationType="none" onRequestClose={dismiss}>
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
 
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.content}>
-              <Image source={{ uri: marker.imageUri }} style={styles.image} />
-              <View style={styles.info}>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Порода</Text>
-                  <Text style={styles.infoValue} numberOfLines={2}>
-                    {marker.breed}
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Цвят</Text>
-                  <Text style={styles.infoValue}>{marker.color}</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Възраст</Text>
-                  <Text style={styles.infoValue} numberOfLines={2}>
-                    {marker.age}
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Обявено</Text>
-                  <Text style={styles.infoValue}>{time}</Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Разстояние</Text>
-                  <Text style={styles.infoValue} numberOfLines={2}>
-                    {dist}
-                  </Text>
+          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+            <View {...panResponder.panHandlers}>
+              <View style={styles.handle} />
+              <View style={styles.header}>
+                <Text style={styles.name} numberOfLines={1}>{marker.name}</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>ТЪРСИ СЕ</Text>
                 </View>
               </View>
             </View>
 
-            {marker.note ? (
-              <View style={styles.noteBox}>
-                <Text style={styles.noteLabel}>Бележка</Text>
-                <Text style={styles.noteText}>{marker.note}</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.callBtn}
-                onPress={handleCall}
-                activeOpacity={0.8}
-              >
-                <View style={styles.actionBtnRow}>
-                  <Phone
-                    width={18}
-                    height={18}
-                    color="#fff"
-                    strokeWidth={1.8}
-                  />
-                  <Text style={styles.callBtnText}>Обади се</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setTipVisible(true)}
-                activeOpacity={0.8}
-              >
-                <ChatLines width={18} height={18} color="#fff" strokeWidth={1.8} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={handleShare}
-                activeOpacity={0.8}
-              >
-                <ShareAndroid width={18} height={18} color="#fff" strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            {tips.length > 0 && (
-              <View style={styles.tipsSection}>
-                <Text style={styles.tipsSectionLabel}>
-                  Коментари ({tips.length})
-                </Text>
-                {tips.map((tip) => (
-                  <View key={tip.id} style={styles.tipCard}>
-                    <View style={styles.tipRow}>
-                      <Text style={styles.tipComment}>{tip.comment}</Text>
-                      <Text style={styles.tipTime}>
-                        {timeAgo(tip.createdAt)}
-                      </Text>
-                    </View>
-                    {tip.location && (
-                      <TouchableOpacity
-                        style={styles.tipLocationRow}
-                        onPress={() =>
-                          Linking.openURL(
-                            `https://maps.google.com/maps?q=${tip.location!.latitude},${tip.location!.longitude}`
-                          )
-                        }
-                        activeOpacity={0.7}
-                      >
-                        <MapPin width={12} height={12} color="#2563EB" strokeWidth={1.8} />
-                        <Text style={styles.tipLocationText}>Виж локацията</Text>
-                      </TouchableOpacity>
-                    )}
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.content}>
+                <TouchableOpacity onPress={() => setFullscreen(true)} activeOpacity={0.85}>
+                  <Image source={{ uri: marker.imageUri }} style={styles.image} />
+                  <View style={styles.expandBtn}>
+                    <Expand width={14} height={14} color="#fff" strokeWidth={2} />
                   </View>
-                ))}
+                </TouchableOpacity>
+                <View style={styles.info}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Порода</Text>
+                    <Text style={styles.infoValue} numberOfLines={2}>{marker.breed}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Цвят</Text>
+                    <Text style={styles.infoValue}>{marker.color}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Възраст</Text>
+                    <Text style={styles.infoValue} numberOfLines={2}>{marker.age}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Обявено</Text>
+                    <Text style={styles.infoValue}>{time}</Text>
+                  </View>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Разстояние</Text>
+                    <Text style={styles.infoValue} numberOfLines={2}>{dist}</Text>
+                  </View>
+                </View>
               </View>
-            )}
-          </ScrollView>
-        </Animated.View>
-      </View>
 
-      <LeaveCommentModal
-        visible={tipVisible}
-        userLocation={userLocation}
-        onSubmit={handleTipSubmit}
-        onClose={() => setTipVisible(false)}
-      />
-    </Modal>
+              {marker.note ? (
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteLabel}>Бележка</Text>
+                  <Text style={styles.noteText}>{marker.note}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.callBtn} onPress={handleCall} activeOpacity={0.8}>
+                  <View style={styles.actionBtnRow}>
+                    <Phone width={18} height={18} color="#fff" strokeWidth={1.8} />
+                    <Text style={styles.callBtnText}>Обади се</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => setTipVisible(true)} activeOpacity={0.8}>
+                  <ChatLines width={18} height={18} color="#fff" strokeWidth={1.8} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={handleShare} activeOpacity={0.8}>
+                  <ShareAndroid width={18} height={18} color="#fff" strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+
+              {tips.length > 0 && (
+                <View style={styles.tipsSection}>
+                  <Text style={styles.tipsSectionLabel}>Коментари ({tips.length})</Text>
+                  {tips.map((tip) => (
+                    <View key={tip.id} style={styles.tipCard}>
+                      <View style={styles.tipRow}>
+                        <Text style={styles.tipComment}>{tip.comment}</Text>
+                        <Text style={styles.tipTime}>{timeAgo(tip.createdAt)}</Text>
+                      </View>
+                      {tip.location && (
+                        <TouchableOpacity
+                          style={styles.tipLocationRow}
+                          onPress={() =>
+                            Linking.openURL(
+                              `https://maps.google.com/maps?q=${tip.location!.latitude},${tip.location!.longitude}`
+                            )
+                          }
+                          activeOpacity={0.7}
+                        >
+                          <MapPin width={12} height={12} color="#2563EB" strokeWidth={1.8} />
+                          <Text style={styles.tipLocationText}>Виж локацията</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
+        </View>
+
+        <LeaveCommentModal
+          visible={tipVisible}
+          userLocation={userLocation}
+          onSubmit={handleTipSubmit}
+          onClose={() => setTipVisible(false)}
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -340,12 +315,8 @@ const styles = StyleSheet.create({
     color: LOST_COLOR,
     letterSpacing: 0.5,
   },
-  scroll: {
-    flexShrink: 1,
-  },
-  scrollContent: {
-    paddingBottom: 36,
-  },
+  scroll: { flexShrink: 1 },
+  scrollContent: { paddingBottom: 36 },
   content: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -356,6 +327,17 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 14,
+  },
+  expandBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   info: {
     flex: 1,
@@ -436,19 +418,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
   },
-  tipBtn: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: "#FEF2F2",
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  tipBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#EF4444",
-  },
   tipsSection: {
     marginHorizontal: 16,
     marginTop: 16,
@@ -492,5 +461,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#2563EB",
     fontWeight: "500",
+  },
+  fsOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fsImage: {
+    width: "100%",
+    height: "100%",
+  },
+  fsClose: {
+    position: "absolute",
+    top: 52,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -32,6 +32,32 @@ const EMPTY_FORM: Form = { color: "", breed: "", age: "", note: "" };
 type PinnedChain = { id: string; chain: SightingMarker[]; color: string };
 const CHAIN_COLORS = ["#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
 
+const _h1: SightingMarker = {
+  id: "seed-husky-1",
+  coordinate: { latitude: 42.6525, longitude: 23.3498 },
+  imageUri: Image.resolveAssetSource(require("../../assets/testImages/hysky-having-fun-beach-laying-sand-wide-angle-shot-facing-camera-111015855.webp")).uri,
+  color: "Сив", breed: "Хъски", age: "Млад (1–3 г.)",
+  createdAt: Date.now() - 3 * 60 * 60 * 1000,
+  connectedChild: "seed-husky-2",
+};
+const _h2: SightingMarker = {
+  id: "seed-husky-2",
+  coordinate: { latitude: 42.6535, longitude: 23.3530 },
+  imageUri: Image.resolveAssetSource(require("../../assets/testImages/siberian-hysky-dog-living-belgium-siberian-hysky-dog-living-belgium-animal-shelter-127837488.webp")).uri,
+  color: "Сив", breed: "Хъски", age: "Млад (1–3 г.)",
+  createdAt: Date.now() - 90 * 60 * 1000,
+  connectedParent: "seed-husky-1", connectedChild: "seed-husky-3",
+};
+const _h3: SightingMarker = {
+  id: "seed-husky-3",
+  coordinate: { latitude: 42.6522, longitude: 23.3558 },
+  imageUri: Image.resolveAssetSource(require("../../assets/testImages/images (1).jpg")).uri,
+  color: "Сив", breed: "Хъски", age: "Млад (1–3 г.)",
+  createdAt: Date.now() - 20 * 60 * 1000,
+  connectedParent: "seed-husky-2",
+};
+const SEED_HUSKY_CHAIN: PinnedChain = { id: "seed-husky", chain: [_h1, _h2, _h3], color: "#22C55E" };
+
 function buildChain(marker: SightingMarker, allMarkers: SightingMarker[]): SightingMarker[] {
   const chain: SightingMarker[] = [];
   let current: SightingMarker | undefined = marker;
@@ -53,6 +79,7 @@ export default function HomeScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [sightingLocation, setSightingLocation] = useState<Coords | null>(null);
   const [markers, setMarkers] = useState<SightingMarker[]>(() => [
+    _h1, _h2, _h3,
     {
       id: "seed-1",
       coordinate: { latitude: 42.6558, longitude: 23.3522 },
@@ -110,7 +137,7 @@ export default function HomeScreen() {
   const [sightingMatches, setSightingMatches] = useState<SightingMarker[]>([]);
   const [thankYouVisible, setThankYouVisible] = useState(false);
   const [afterThankYou, setAfterThankYou] = useState<(() => void) | null>(null);
-  const [pinnedChains, setPinnedChains] = useState<PinnedChain[]>([]);
+  const [pinnedChains, setPinnedChains] = useState<PinnedChain[]>([SEED_HUSKY_CHAIN]);
   const [points, setPoints] = useState<Record<string, { x: number; y: number }>>({});
   const [latDelta, setLatDelta] = useState(0.01);
 
