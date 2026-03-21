@@ -217,7 +217,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: "85%",
+    flex: 1,
+    overflow: "hidden",
     paddingBottom: 36,
   },
   header: {
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1C1C1E",
   },
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 16, flex: 1 },
   petTypeCard: {
     backgroundColor: "#fff",
     borderRadius: 16,

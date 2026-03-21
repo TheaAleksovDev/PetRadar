@@ -108,6 +108,7 @@ export default function MatchModal({ visible, matches, onSelect, onDismiss }: Pr
               numColumns={2}
               columnWrapperStyle={styles.row}
               contentContainerStyle={styles.grid}
+              style={{ flex: 1 }}
               scrollEnabled
               renderItem={({ item }) => {
                 const isSelected = item.id === selected;
@@ -155,8 +156,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    flex: 1,
+    overflow: "hidden",
     paddingBottom: 36,
-    maxHeight: "85%",
   },
   title: {
     fontSize: 20,

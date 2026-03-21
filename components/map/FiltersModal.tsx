@@ -44,7 +44,7 @@ export default function FiltersModal({ visible, filters, onApply, onClose }: Pro
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
             <Text style={styles.sectionLabel}>Покажи само</Text>
             <View style={styles.pills}>
@@ -132,6 +132,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    flex: 1,
+    overflow: "hidden",
     paddingBottom: 36,
   },
   handle: {

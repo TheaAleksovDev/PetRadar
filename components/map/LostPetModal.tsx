@@ -110,7 +110,7 @@ export default function LostPetModal({
       />
 
       <BottomSheet visible={visible} onClose={handleClose} maxHeight="92%">
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <View style={styles.card}>
             <View style={styles.header}>
               <TouchableOpacity onPress={handleClose} style={styles.backBtn}>
@@ -306,7 +306,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2F2F7",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: "92%",
+    flex: 1,
+    overflow: "hidden",
     paddingBottom: 36,
   },
   header: {
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1C1C1E",
   },
-  body: { paddingHorizontal: 16 },
+  body: { paddingHorizontal: 16, flex: 1 },
 
   photoPicker: {
     borderRadius: 16,

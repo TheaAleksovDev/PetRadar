@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
-import { Animated, Modal, PanResponder, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, Dimensions, Modal, PanResponder, StyleSheet, TouchableOpacity, View } from "react-native";
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 type Props = {
   visible: boolean;
@@ -8,7 +10,13 @@ type Props = {
   children: React.ReactNode;
 };
 
+function toPixels(h: string | number): number {
+  if (typeof h === "number") return h;
+  return SCREEN_HEIGHT * (parseFloat(h) / 100);
+}
+
 export default function BottomSheet({ visible, onClose, maxHeight = "85%", children }: Props) {
+  const sheetHeight = toPixels(maxHeight);
   const translateY = useRef(new Animated.Value(800)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -58,8 +66,8 @@ export default function BottomSheet({ visible, onClose, maxHeight = "85%", child
           style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
           pointerEvents="none"
         />
-        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ maxHeight: maxHeight as any, width: "100%" }}>
-          <Animated.View style={{ transform: [{ translateY }] }}>
+        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: "100%" }}>
+          <Animated.View style={{ height: sheetHeight, transform: [{ translateY }] }}>
             <View style={styles.handleArea} {...panResponder.panHandlers}>
               <View style={styles.handle} />
             </View>
