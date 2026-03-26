@@ -1,4 +1,4 @@
-import { Camera, Plus, Search, Xmark } from "iconoir-react-native";
+import { Camera, Compass, Plus, Search, Xmark } from "iconoir-react-native";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
@@ -6,9 +6,10 @@ type Props = {
   onToggle: () => void;
   onSighting: () => void;
   onLost: () => void;
+  onRecenter: () => void;
 };
 
-export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
+export default function FabMenu({ open, onToggle, onSighting, onLost, onRecenter }: Props) {
   return (
     <>
       {open && (
@@ -42,6 +43,14 @@ export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
       )}
 
       <TouchableOpacity
+        style={styles.recenter}
+        onPress={onRecenter}
+        activeOpacity={0.85}
+      >
+        <Compass width={20} height={20} color="#1C1C1E" strokeWidth={1.8} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.fab}
         onPress={onToggle}
         activeOpacity={0.85}
@@ -56,6 +65,22 @@ export default function FabMenu({ open, onToggle, onSighting, onLost }: Props) {
 }
 
 const styles = StyleSheet.create({
+  recenter: {
+    position: "absolute",
+    bottom: 32,
+    right: 88,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
   fab: {
     position: "absolute",
     bottom: 32,

@@ -25,9 +25,6 @@ export default function PathNotification({ chains }: Props) {
 
 export const styles = StyleSheet.create({
   notification: {
-    position: "absolute",
-    top: 52,
-    left: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,

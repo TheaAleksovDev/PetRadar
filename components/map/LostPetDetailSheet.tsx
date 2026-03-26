@@ -50,9 +50,11 @@ type Props = {
   userLocation: Coords;
   onClose: () => void;
   onSubmitTip?: (markerId: string, comment: string, location: Coords | null) => void;
+  isOwner?: boolean;
+  onMarkFound?: () => void;
 };
 
-export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitTip }: Props) {
+export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitTip, isOwner, onMarkFound }: Props) {
   const [tipVisible, setTipVisible] = useState(false);
   const [tips, setTips] = useState<Tip[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
@@ -206,12 +208,18 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
               ) : null}
 
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.callBtn} onPress={handleCall} activeOpacity={0.8}>
-                  <View style={styles.actionBtnRow}>
-                    <Phone width={18} height={18} color="#fff" strokeWidth={1.8} />
-                    <Text style={styles.callBtnText}>Обади се</Text>
-                  </View>
-                </TouchableOpacity>
+                {isOwner ? (
+                  <TouchableOpacity style={styles.foundBtn} onPress={onMarkFound} activeOpacity={0.8}>
+                    <Text style={styles.callBtnText}>Отбележи като намерен</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.callBtn} onPress={handleCall} activeOpacity={0.8}>
+                    <View style={styles.actionBtnRow}>
+                      <Phone width={18} height={18} color="#fff" strokeWidth={1.8} />
+                      <Text style={styles.callBtnText}>Обади се</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity style={styles.iconBtn} onPress={() => setTipVisible(true)} activeOpacity={0.8}>
                   <ChatLines width={18} height={18} color="#fff" strokeWidth={1.8} />
                 </TouchableOpacity>
@@ -388,6 +396,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#1C1C1E",
     lineHeight: 20,
+  },
+  foundBtn: {
+    flex: 1,
+    backgroundColor: "#22C55E",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
   },
   actions: {
     flexDirection: "row",
