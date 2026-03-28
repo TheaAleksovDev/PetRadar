@@ -12,6 +12,7 @@ export type SightingMarker = {
   petType?: "dog" | "cat" | "other";
   connectedParent?: string;
   connectedChild?: string;
+  isFound?: boolean;
 };
 
 export type Tip = {
@@ -35,4 +36,5 @@ export type LostMarker = {
   petType?: "dog" | "cat" | "other";
   tips?: Tip[];
   connectedChild?: string;
+  isFound?: boolean;
 };

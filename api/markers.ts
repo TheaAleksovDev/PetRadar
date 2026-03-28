@@ -38,6 +38,7 @@ function toSightingMarker(m: any): SightingMarker {
     petType: m.petType,
     connectedParent: m.connectedParent,
     connectedChild: m.connectedChild,
+    isFound: m.found ?? false,
   };
 }
 
@@ -55,6 +56,7 @@ function toLostMarker(m: any): LostMarker {
     note: m.note,
     petType: m.petType,
     connectedChild: m.connectedChild,
+    isFound: m.found ?? false,
     tips: (m.tips || []).map((t: any): Tip => ({
       id: String(t.id),
       comment: t.comment,
@@ -69,6 +71,31 @@ function toLostMarker(m: any): LostMarker {
 export async function fetchMyMarkerIds(): Promise<Set<string>> {
   const { data } = await apiClient.get("/api/markers/me");
   return new Set(data.map((m: any) => String(m.id)));
+}
+
+export async function fetchMyMarkers(): Promise<{ seen: SightingMarker[]; lost: LostMarker[] }> {
+  const { data } = await apiClient.get("/api/markers/me");
+  const seen = data.filter((m: any) => m.markerType === "SEEN").map(toSightingMarker);
+  const lost = data.filter((m: any) => m.markerType === "LOST").map(toLostMarker);
+  return { seen, lost };
+}
+
+export async function reopenMarker(id: string): Promise<void> {
+  await apiClient.patch(`/api/markers/${id}/reopen`);
+}
+
+type UpdatePayload = {
+  petType?: string;
+  breed?: string;
+  color?: string;
+  age?: string;
+  name?: string;
+  phone?: string;
+  note?: string;
+};
+
+export async function updateMarker(id: string, payload: UpdatePayload): Promise<void> {
+  await apiClient.patch(`/api/markers/${id}`, payload);
 }
 
 export async function fetchAllMarkers(): Promise<{ sightings: SightingMarker[]; lost: LostMarker[] }> {

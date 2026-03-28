@@ -31,7 +31,7 @@ function timeAgo(ts: number): string {
   if (minutes < 60) return `Преди ${minutes}м`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `Преди ${hours}ч`;
-  return `Преди ${Math.floor(hours / 24)} дена`;
+  return `Преди ${Math.floor(hours / 24)} д`;
 }
 
 type Props = {

@@ -1,5 +1,7 @@
+import { BinFull, EditPencil } from "iconoir-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -17,23 +19,42 @@ const DRAWER_WIDTH = SCREEN_WIDTH * 0.82;
 
 type Tab = "all" | "seen" | "lost";
 
+export type MyPostItem =
+  | { kind: "seen"; marker: SightingMarker }
+  | { kind: "lost"; marker: LostMarker };
+
 type Props = {
   visible: boolean;
   onClose: () => void;
-  myMarkerIds: Set<string>;
-  sightings: SightingMarker[];
-  lostMarkers: LostMarker[];
+  myMarkers: MyPostItem[];
+  onSelect: (kind: "seen" | "lost", marker: SightingMarker | LostMarker) => void;
+  onEdit: (kind: "seen" | "lost", marker: SightingMarker | LostMarker) => void;
+  onDelete: (kind: "seen" | "lost", marker: SightingMarker | LostMarker) => void;
 };
 
 function timeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return "сега";
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч`;
-  return `${Math.floor(diff / 86400)} д`;
+  if (diff < 60) return "преди малко";
+  if (diff < 3600) {
+    const m = Math.floor(diff / 60);
+    return `преди ${m} ${m === 1 ? "минута" : "минути"}`;
+  }
+  if (diff < 86400) {
+    const h = Math.floor(diff / 3600);
+    return `преди ${h} ${h === 1 ? "час" : "часа"}`;
+  }
+  const d = Math.floor(diff / 86400);
+  return `преди ${d} д`;
 }
 
-export default function MyPostsDrawer({ visible, onClose, myMarkerIds, sightings, lostMarkers }: Props) {
+export default function MyPostsDrawer({
+  visible,
+  onClose,
+  myMarkers,
+  onSelect,
+  onEdit,
+  onDelete,
+}: Props) {
   const translateX = useRef(new Animated.Value(DRAWER_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>("all");
@@ -43,46 +64,69 @@ export default function MyPostsDrawer({ visible, onClose, myMarkerIds, sightings
       translateX.setValue(DRAWER_WIDTH);
       backdropOpacity.setValue(0);
       Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
-        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 200 }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 22,
+          stiffness: 200,
+        }),
       ]).start();
     }
   }, [visible]);
 
   const dismiss = () => {
     Animated.parallel([
-      Animated.timing(backdropOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(translateX, { toValue: DRAWER_WIDTH, duration: 240, useNativeDriver: true }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateX, {
+        toValue: DRAWER_WIDTH,
+        duration: 240,
+        useNativeDriver: true,
+      }),
     ]).start(() => onClose());
   };
 
-  const mySightings = sightings.filter((m) => myMarkerIds.has(m.id));
-  const myLost = lostMarkers.filter((m) => myMarkerIds.has(m.id));
-
-  type Item =
-    | { kind: "seen"; marker: SightingMarker }
-    | { kind: "lost"; marker: LostMarker };
-
-  const items: Item[] = [
-    ...(tab !== "lost" ? mySightings.map((m): Item => ({ kind: "seen", marker: m })) : []),
-    ...(tab !== "seen" ? myLost.map((m): Item => ({ kind: "lost", marker: m })) : []),
-  ].sort((a, b) => b.marker.createdAt - a.marker.createdAt);
+  const items = myMarkers
+    .filter(
+      (item) =>
+        tab === "all" || item.kind === (tab === "seen" ? "seen" : "lost"),
+    )
+    .sort((a, b) => b.marker.createdAt - a.marker.createdAt);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={dismiss}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={dismiss}
+    >
       <View style={styles.root}>
         <Animated.View
-          style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
+          style={[
+            StyleSheet.absoluteFill,
+            styles.backdrop,
+            { opacity: backdropOpacity },
+          ]}
           pointerEvents="none"
         />
-        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={dismiss}
+        />
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           <View style={styles.header}>
             <Text style={styles.title}>Моите публикации</Text>
-            <Text style={styles.subtitle}>
-              {mySightings.length + myLost.length} общо
-            </Text>
+            <Text style={styles.subtitle}>{myMarkers.length} общо</Text>
           </View>
 
           <View style={styles.tabs}>
@@ -93,8 +137,14 @@ export default function MyPostsDrawer({ visible, onClose, myMarkerIds, sightings
                 onPress={() => setTab(t)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                  {t === "all" ? "Всички" : t === "seen" ? "Забелязани" : "Изгубени"}
+                <Text
+                  style={[styles.tabText, tab === t && styles.tabTextActive]}
+                >
+                  {t === "all"
+                    ? "Всички"
+                    : t === "seen"
+                      ? "Забелязани"
+                      : "Изгубени"}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -114,30 +164,80 @@ export default function MyPostsDrawer({ visible, onClose, myMarkerIds, sightings
               renderItem={({ item }) => {
                 const isLost = item.kind === "lost";
                 const m = item.marker;
-                const label = isLost ? (m as LostMarker).name : (m as SightingMarker).breed;
+                const found = m.isFound === true;
+                const label = isLost
+                  ? (m as LostMarker).name || m.breed
+                  : m.breed;
                 const sub = `${m.color} · ${m.breed}`;
                 return (
-                  <View style={styles.card}>
+                  <TouchableOpacity
+                    style={[styles.card, found && styles.cardFound]}
+                    activeOpacity={0.7}
+                    onPress={() => onSelect(item.kind, m)}
+                  >
                     {m.imageUri ? (
-                      <Image source={{ uri: m.imageUri }} style={styles.img} />
+                      <Image
+                        source={{ uri: m.imageUri }}
+                        style={[styles.img, found && styles.imgFound]}
+                      />
                     ) : (
-                      <View style={[styles.img, styles.imgPlaceholder]}>
+                      <View style={[styles.img, styles.imgPlaceholder, found && styles.imgFound]}>
                         <Text style={styles.imgPlaceholderText}>🐾</Text>
                       </View>
                     )}
                     <View style={styles.info}>
                       <View style={styles.topRow}>
-                        <Text style={styles.label} numberOfLines={1}>{label}</Text>
-                        <View style={[styles.badge, isLost ? styles.badgeLost : styles.badgeSeen]}>
-                          <Text style={[styles.badgeText, isLost ? styles.badgeTextLost : styles.badgeTextSeen]}>
-                            {isLost ? "ТЪРСИ СЕ" : "ЗАБЕЛЯЗАН"}
-                          </Text>
+                        <Text
+                          style={[styles.label, found && styles.labelFound]}
+                          numberOfLines={1}
+                        >
+                          {label}
+                        </Text>
+                        {found ? (
+                          <View style={styles.badgeFound}>
+                            <Text style={styles.badgeFoundText}>НАМЕРЕН</Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.badge, isLost ? styles.badgeLost : styles.badgeSeen]}>
+                            <Text style={[styles.badgeText, isLost ? styles.badgeTextLost : styles.badgeTextSeen]}>
+                              {isLost ? "ТЪРСИ СЕ" : "ЗАБЕЛЯЗАН"}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.sub, found && styles.subFound]} numberOfLines={1}>
+                        {sub}
+                      </Text>
+                      <View style={styles.metaRow}>
+                        <Text style={styles.meta} numberOfLines={1}>{timeAgo(m.createdAt)}</Text>
+                        <View style={styles.cardActions}>
+                          <TouchableOpacity
+                            onPress={() => onEdit(item.kind, m)}
+                            activeOpacity={0.6}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+                          >
+                            <EditPencil width={13} height={13} color="#AEAEB2" strokeWidth={1.8} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() =>
+                              Alert.alert(
+                                "Изтрий публикация",
+                                "Сигурен ли си, че искаш да изтриеш тази публикация?",
+                                [
+                                  { text: "Откажи", style: "cancel" },
+                                  { text: "Изтрий", style: "destructive", onPress: () => onDelete(item.kind, m) },
+                                ],
+                              )
+                            }
+                            activeOpacity={0.6}
+                            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+                          >
+                            <BinFull width={13} height={13} color="#AEAEB2" strokeWidth={1.8} />
+                          </TouchableOpacity>
                         </View>
                       </View>
-                      <Text style={styles.sub} numberOfLines={1}>{sub}</Text>
-                      <Text style={styles.meta}>{timeAgo(m.createdAt)}</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               }}
             />
@@ -229,10 +329,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 10,
   },
+  cardFound: {
+    opacity: 0.55,
+  },
   img: {
     width: 56,
     height: 56,
     borderRadius: 10,
+  },
+  imgFound: {
+    opacity: 0.7,
   },
   imgPlaceholder: {
     backgroundColor: "#E5E5EA",
@@ -256,6 +362,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#1C1C1E",
+    textAlign: "center",
+  },
+  labelFound: {
+    color: "#8E8E93",
   },
   badge: {
     paddingHorizontal: 7,
@@ -279,13 +389,40 @@ const styles = StyleSheet.create({
   badgeTextLost: {
     color: "#DC2626",
   },
+  badgeFound: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#E5E5EA",
+  },
+  badgeFoundText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    color: "#6C6C70",
+  },
   sub: {
     fontSize: 12,
     color: "#6C6C70",
   },
+  subFound: {
+    color: "#AEAEB2",
+  },
   meta: {
+    flex: 1,
     fontSize: 11,
     color: "#AEAEB2",
+    textAlign: "center",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardActions: {
+    flexDirection: "row",
+    gap: 16,
+    alignItems: "center",
   },
   empty: {
     flex: 1,

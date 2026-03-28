@@ -67,7 +67,7 @@ export default function BottomSheet({ visible, onClose, maxHeight = "85%", child
           pointerEvents="none"
         />
         <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: "100%" }}>
-          <Animated.View style={{ height: sheetHeight, transform: [{ translateY }] }}>
+          <Animated.View style={{ height: sheetHeight, transform: [{ translateY }], backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" }}>
             <View style={styles.handleArea} {...panResponder.panHandlers}>
               <View style={styles.handle} />
             </View>

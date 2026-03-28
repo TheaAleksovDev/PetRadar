@@ -1,6 +1,9 @@
 import { login as apiLogin, signup as apiSignup } from "@/api/auth";
-import apiClient from "@/api/client";
-import { createContext, useContext, useState } from "react";
+import { setApiToken, setUnauthorizedHandler } from "@/api/client";
+import * as SecureStore from "expo-secure-store";
+import { createContext, useContext, useEffect, useState } from "react";
+
+const TOKEN_KEY = "auth_token";
 
 type AuthContextType = {
   token: string | null;
@@ -14,9 +17,16 @@ const AuthContext = createContext<AuthContextType>(null!);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    SecureStore.getItemAsync(TOKEN_KEY).then((t) => {
+      if (t) setAuth(t);
+    });
+  }, []);
+
   const setAuth = (t: string) => {
     setToken(t);
-    apiClient.defaults.headers.common["Authorization"] = `Bearer ${t}`;
+    setApiToken(t);
+    SecureStore.setItemAsync(TOKEN_KEY, t);
   };
 
   const login = async (email: string, password: string) => {
@@ -59,8 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setToken(null);
-    delete apiClient.defaults.headers.common["Authorization"];
+    setApiToken(null);
+    SecureStore.deleteItemAsync(TOKEN_KEY);
   };
+
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ token, login, signup, logout }}>

@@ -1,4 +1,4 @@
-import { ChatLines, Expand, MapPin, Phone, ShareAndroid, Xmark } from "iconoir-react-native";
+import { ChatLines, Expand, MapPin, Phone, RefreshDouble, ShareAndroid, Xmark } from "iconoir-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -52,9 +52,10 @@ type Props = {
   onSubmitTip?: (markerId: string, comment: string, location: Coords | null) => void;
   isOwner?: boolean;
   onMarkFound?: () => void;
+  onReopen?: () => void;
 };
 
-export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitTip, isOwner, onMarkFound }: Props) {
+export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitTip, isOwner, onMarkFound, onReopen }: Props) {
   const [tipVisible, setTipVisible] = useState(false);
   const [tips, setTips] = useState<Tip[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
@@ -153,8 +154,10 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
               <View style={styles.handle} />
               <View style={styles.header}>
                 <Text style={styles.name} numberOfLines={1}>{marker.name}</Text>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>ТЪРСИ СЕ</Text>
+                <View style={[styles.badge, marker.isFound && styles.badgeFound]}>
+                  <Text style={[styles.badgeText, marker.isFound && styles.badgeFoundText]}>
+                    {marker.isFound ? "НАМЕРЕН" : "ТЪРСИ СЕ"}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -208,7 +211,14 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
               ) : null}
 
               <View style={styles.actions}>
-                {isOwner ? (
+                {isOwner && marker?.isFound ? (
+                  <TouchableOpacity style={styles.reopenBtn} onPress={onReopen} activeOpacity={0.8}>
+                    <View style={styles.actionBtnRow}>
+                      <RefreshDouble width={18} height={18} color="#1C1C1E" strokeWidth={1.8} />
+                      <Text style={[styles.callBtnText, { color: "#1C1C1E" }]}>Отвори отново</Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : isOwner ? (
                   <TouchableOpacity style={styles.foundBtn} onPress={onMarkFound} activeOpacity={0.8}>
                     <Text style={styles.callBtnText}>Отбележи като намерен</Text>
                   </TouchableOpacity>
@@ -317,11 +327,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FCA5A5",
   },
+  badgeFound: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#86EFAC",
+  },
   badgeText: {
     fontSize: 12,
     fontWeight: "700",
     color: LOST_COLOR,
     letterSpacing: 0.5,
+  },
+  badgeFoundText: {
+    color: "#16A34A",
   },
   scroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: 36 },
@@ -400,6 +417,15 @@ const styles = StyleSheet.create({
   foundBtn: {
     flex: 1,
     backgroundColor: "#22C55E",
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  reopenBtn: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#1C1C1E",
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",

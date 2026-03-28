@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import { FilterList, List, Map, Settings } from "iconoir-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   BackHandler,
   FlatList,
@@ -17,9 +18,13 @@ import MapView, { PROVIDER_GOOGLE, Region } from "react-native-maps";
 import {
   addTipToMarker,
   createMarker,
+  deleteMarker,
   fetchAllMarkers,
   fetchMyMarkerIds,
+  fetchMyMarkers,
+  reopenMarker,
   markAsFound,
+  updateMarker,
 } from "@/api/markers";
 import CameraScreen from "@/components/map/CameraScreen";
 import FabMenu from "@/components/map/FabMenu";
@@ -30,7 +35,8 @@ import FiltersModal, {
 import LostPetDetailSheet from "@/components/map/LostPetDetailSheet";
 import LostPetModal from "@/components/map/LostPetModal";
 import MatchModal from "@/components/map/MatchModal";
-import MyPostsDrawer from "@/components/map/MyPostsDrawer";
+import EditMarkerSheet from "@/components/map/EditMarkerSheet";
+import MyPostsDrawer, { type MyPostItem } from "@/components/map/MyPostsDrawer";
 import PathNotification from "@/components/map/PathNotification";
 import PetDetailSheet from "@/components/map/PetDetailSheet";
 import PetMarker, {
@@ -81,49 +87,6 @@ const CHAIN_COLORS = [
   "#F97316",
 ];
 
-const _h1: SightingMarker = {
-  id: "seed-husky-1",
-  coordinate: { latitude: 42.6525, longitude: 23.3498 },
-  imageUri: Image.resolveAssetSource(
-    require("../../assets/testImages/hysky-having-fun-beach-laying-sand-wide-angle-shot-facing-camera-111015855.webp"),
-  ).uri,
-  color: "Сив",
-  breed: "Хъски",
-  age: "Млад (1–3 г.)",
-  createdAt: Date.now() - 3 * 60 * 60 * 1000,
-  connectedChild: "seed-husky-2",
-};
-const _h2: SightingMarker = {
-  id: "seed-husky-2",
-  coordinate: { latitude: 42.6535, longitude: 23.353 },
-  imageUri: Image.resolveAssetSource(
-    require("../../assets/testImages/siberian-hysky-dog-living-belgium-siberian-hysky-dog-living-belgium-animal-shelter-127837488.webp"),
-  ).uri,
-  color: "Сив",
-  breed: "Хъски",
-  age: "Млад (1–3 г.)",
-  createdAt: Date.now() - 90 * 60 * 1000,
-  connectedParent: "seed-husky-1",
-  connectedChild: "seed-husky-3",
-};
-const _h3: SightingMarker = {
-  id: "seed-husky-3",
-  coordinate: { latitude: 42.6522, longitude: 23.3558 },
-  imageUri: Image.resolveAssetSource(
-    require("../../assets/testImages/images (1).jpg"),
-  ).uri,
-  color: "Сив",
-  breed: "Хъски",
-  age: "Млад (1–3 г.)",
-  createdAt: Date.now() - 20 * 60 * 1000,
-  connectedParent: "seed-husky-2",
-};
-const SEED_HUSKY_CHAIN: PinnedChain = {
-  id: "seed-husky",
-  chain: [_h1, _h2, _h3],
-  color: "#22C55E",
-};
-
 function getFullChainIds(
   markerId: string,
   allMarkers: SightingMarker[],
@@ -165,61 +128,8 @@ export default function HomeScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [sightingLocation, setSightingLocation] = useState<Coords | null>(null);
-  const [markers, setMarkers] = useState<SightingMarker[]>(() => [
-    _h1,
-    _h2,
-    _h3,
-    {
-      id: "seed-1",
-      coordinate: { latitude: 42.6558, longitude: 23.3522 },
-      imageUri: Image.resolveAssetSource(
-        require("../../assets/testImages/images.jpg"),
-      ).uri,
-      color: "Бял",
-      breed: "Смесен",
-      age: "Млад (1–3 г.)",
-      createdAt: Date.now() - 5 * 60 * 1000,
-    },
-    {
-      id: "seed-2",
-      coordinate: { latitude: 42.6575, longitude: 23.3548 },
-      imageUri: Image.resolveAssetSource(
-        require("../../assets/testImages/Australian-Shepherd-breed-sitting-on-the-stone_ChocoPie-Shutterstock.jpg"),
-      ).uri,
-      color: "Пъстър",
-      breed: "Друга порода",
-      age: "Млад (1–3 г.)",
-      createdAt: Date.now() - 2 * 60 * 60 * 1000,
-    },
-  ]);
-  const [lostMarkers, setLostMarkers] = useState<LostMarker[]>(() => [
-    {
-      id: "lost-seed-1",
-      coordinate: { latitude: 42.6408, longitude: 23.3762 },
-      imageUri: Image.resolveAssetSource(
-        require("../../assets/testImages/PuppyZiggyAtHome-e1590163382501.jpeg"),
-      ).uri,
-      name: "Зиги",
-      color: "Кафяв",
-      breed: "Лабрадор",
-      age: "Кученце (0–1 г.)",
-      phone: "+359 888 123 456",
-      createdAt: Date.now() - 3 * 60 * 60 * 1000,
-    },
-    {
-      id: "lost-seed-2",
-      coordinate: { latitude: 42.6391, longitude: 23.3795 },
-      imageUri: Image.resolveAssetSource(
-        require("../../assets/testImages/Screen-Shot-2019-01-02-at-12.29.17-PM.png"),
-      ).uri,
-      name: "Макс",
-      color: "Черен",
-      breed: "Немска овчарка",
-      age: "Възрастен (3–7 г.)",
-      phone: "+359 877 654 321",
-      createdAt: Date.now() - 24 * 60 * 60 * 1000,
-    },
-  ]);
+  const [markers, setMarkers] = useState<SightingMarker[]>([]);
+  const [lostMarkers, setLostMarkers] = useState<LostMarker[]>([]);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [lostModalVisible, setLostModalVisible] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<SightingMarker | null>(
@@ -240,9 +150,7 @@ export default function HomeScreen() {
     "dog" | "cat" | "other"
   >("dog");
   const [afterThankYou, setAfterThankYou] = useState<(() => void) | null>(null);
-  const [pinnedChains, setPinnedChains] = useState<PinnedChain[]>([
-    SEED_HUSKY_CHAIN,
-  ]);
+  const [pinnedChains, setPinnedChains] = useState<PinnedChain[]>([]);
   const [points, setPoints] = useState<
     Record<string, { x: number; y: number }>
   >({});
@@ -252,8 +160,13 @@ export default function HomeScreen() {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [myPostsVisible, setMyPostsVisible] = useState(false);
   const [myMarkerIds, setMyMarkerIds] = useState<Set<string>>(new Set());
+  const [myOwnMarkers, setMyOwnMarkers] = useState<MyPostItem[]>([]);
+  const [markersLoading, setMarkersLoading] = useState(true);
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
+  const [editingKind, setEditingKind] = useState<"seen" | "lost" | null>(null);
+  const [editingMarker, setEditingMarker] = useState<SightingMarker | LostMarker | null>(null);
 
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
   const router = useRouter();
 
   const mapRef = useRef<MapView>(null);
@@ -296,16 +209,27 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
+    if (!token) return;
+    setMarkersLoading(true);
     fetchAllMarkers()
       .then(({ sightings, lost }) => {
-        setMarkers((prev) => [...prev, ...sightings]);
-        setLostMarkers((prev) => [...prev, ...lost]);
+        setMarkers(sightings);
+        setLostMarkers(lost);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setMarkersLoading(false));
     fetchMyMarkerIds()
       .then((ids) => setMyMarkerIds(ids))
       .catch(() => {});
-  }, []);
+    fetchMyMarkers()
+      .then(({ seen, lost }) =>
+        setMyOwnMarkers([
+          ...seen.map((m): MyPostItem => ({ kind: "seen", marker: m })),
+          ...lost.map((m): MyPostItem => ({ kind: "lost", marker: m })),
+        ])
+      )
+      .catch(() => {});
+  }, [token]);
 
   const updatePositions = async () => {
     if (!mapRef.current) return;
@@ -320,7 +244,6 @@ export default function HomeScreen() {
     setPoints(Object.fromEntries(entries));
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     updatePositions();
   }, [markers, lostMarkers]);
@@ -363,6 +286,10 @@ export default function HomeScreen() {
     setForm(EMPTY_FORM);
 
     setMyMarkerIds((prev) => new Set([...prev, tempId]));
+    setMyOwnMarkers((prev) => [
+      { kind: "seen", marker: { id: tempId, coordinate: sightingLocation, imageUri, createdAt, color: form.color, breed: form.breed, age: form.age, note: form.note || undefined, petType } },
+      ...prev,
+    ]);
 
     createMarker({
       markerType: "SEEN",
@@ -387,6 +314,9 @@ export default function HomeScreen() {
           next.add(id);
           return next;
         });
+        setMyOwnMarkers((prev) =>
+          prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
+        );
       })
       .catch(() => {});
 
@@ -491,6 +421,10 @@ export default function HomeScreen() {
     setLostModalVisible(false);
 
     setMyMarkerIds((prev) => new Set([...prev, tempId]));
+    setMyOwnMarkers((prev) => [
+      { kind: "lost", marker: { id: tempId, coordinate: location, imageUri: data.imageUri, createdAt, name: data.name, color: data.color, breed: data.breed, age: data.age, phone: data.phone, note: data.note || undefined, petType } },
+      ...prev,
+    ]);
 
     createMarker({
       markerType: "LOST",
@@ -516,6 +450,9 @@ export default function HomeScreen() {
           next.add(id);
           return next;
         });
+        setMyOwnMarkers((prev) =>
+          prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
+        );
       })
       .catch(() => {});
   };
@@ -552,7 +489,12 @@ export default function HomeScreen() {
     }
   };
 
-  if (!initialRegion || !userLocation) return null;
+  if (!initialRegion || !userLocation)
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
 
   const selectedChainId =
     selectedChain.length > 0
@@ -628,6 +570,7 @@ export default function HomeScreen() {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
+        onMapReady={updatePositions}
         onRegionChange={(r) => {
           setLatDelta(r.latitudeDelta);
           updatePositions();
@@ -957,6 +900,27 @@ export default function HomeScreen() {
             (id) => /^\d+$/.test(id),
           );
           idsToMark.forEach((id) => markAsFound(id).catch(() => {}));
+          setMyOwnMarkers((prev) =>
+            prev.map((item) =>
+              idsToMark.includes(item.marker.id)
+                ? ({ ...item, marker: { ...item.marker, isFound: true } } as MyPostItem)
+                : item,
+            ),
+          );
+        }}
+        onReopen={() => {
+          if (!selectedLostMarker) return;
+          const id = selectedLostMarker.id;
+          setSelectedLostMarker({ ...selectedLostMarker, isFound: false });
+          setLostMarkers((prev) => [...prev, { ...selectedLostMarker, isFound: false }]);
+          setMyOwnMarkers((prev) =>
+            prev.map((item) =>
+              item.marker.id === id
+                ? ({ ...item, marker: { ...item.marker, isFound: false } } as MyPostItem)
+                : item,
+            ),
+          );
+          reopenMarker(id).catch(() => {});
         }}
       />
 
@@ -1096,9 +1060,63 @@ export default function HomeScreen() {
       <MyPostsDrawer
         visible={myPostsVisible}
         onClose={() => setMyPostsVisible(false)}
-        myMarkerIds={myMarkerIds}
-        sightings={markers}
-        lostMarkers={lostMarkers}
+        myMarkers={myOwnMarkers}
+        onSelect={(kind, marker) => {
+          setMyPostsVisible(false);
+          if (marker.isFound) {
+            if (kind === "lost") setSelectedLostMarker(marker as LostMarker);
+            return;
+          }
+          setFilters((f) => ({ ...f, view: "map" }));
+          mapRef.current?.animateToRegion(
+            { ...marker.coordinate, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+            500,
+          );
+          if (kind === "seen") {
+            openSighting(marker as SightingMarker);
+          } else {
+            setSelectedLostMarker(marker as LostMarker);
+          }
+        }}
+        onEdit={(kind, marker) => {
+          setEditingKind(kind);
+          setEditingMarker(marker);
+          setEditSheetVisible(true);
+        }}
+        onDelete={(kind, marker) => {
+          setMyOwnMarkers((prev) => prev.filter((item) => item.marker.id !== marker.id));
+          if (kind === "seen") {
+            setMarkers((prev) => prev.filter((m) => m.id !== marker.id));
+          } else {
+            setLostMarkers((prev) => prev.filter((m) => m.id !== marker.id));
+          }
+          setMyMarkerIds((prev) => { const next = new Set(prev); next.delete(marker.id); return next; });
+          if (/^\d+$/.test(marker.id)) deleteMarker(marker.id).catch(() => {});
+        }}
+      />
+
+      <EditMarkerSheet
+        visible={editSheetVisible}
+        kind={editingKind}
+        marker={editingMarker}
+        onClose={() => setEditSheetVisible(false)}
+        onSave={(id, kind, form) => {
+          setEditSheetVisible(false);
+          setMyOwnMarkers((prev) =>
+            prev.map((item) =>
+              item.marker.id === id
+                ? ({ ...item, marker: { ...item.marker, ...form } } as MyPostItem)
+                : item,
+            ),
+          );
+          const petType = form.petType as "dog" | "cat" | "other" | undefined;
+          if (kind === "seen") {
+            setMarkers((prev) => prev.map((m) => m.id === id ? { ...m, ...form, petType } : m));
+          } else {
+            setLostMarkers((prev) => prev.map((m) => m.id === id ? { ...m, ...form, petType } : m));
+          }
+          if (/^\d+$/.test(id)) updateMarker(id, form).catch(() => {});
+        }}
       />
 
       <ReportModal
