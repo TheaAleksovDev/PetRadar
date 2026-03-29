@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { NavArrowLeft, Undo } from "iconoir-react-native";
 import {
   Dimensions,
@@ -102,7 +103,9 @@ export default function ReportModal({
                       }}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.petTypeEmoji}>{emoji}</Text>
+                      {emoji === "🐾"
+                        ? <MaterialCommunityIcons name="paw" size={20} color={petType === val ? "#fff" : "#1C1C1E"} />
+                        : <Text style={styles.petTypeEmoji}>{emoji}</Text>}
                       <Text style={[styles.petTypePillText, petType === val && styles.petTypePillTextActive]}>
                         {label}
                       </Text>

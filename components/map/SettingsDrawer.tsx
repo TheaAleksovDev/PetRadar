@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { LogOut } from "iconoir-react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LogOut, Refresh } from "iconoir-react-native";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.72;
@@ -17,9 +18,10 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onLogout: () => void;
+  onRefresh: () => void;
 };
 
-export default function SettingsDrawer({ visible, onClose, onLogout }: Props) {
+export default function SettingsDrawer({ visible, onClose, onLogout, onRefresh }: Props) {
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -53,7 +55,7 @@ export default function SettingsDrawer({ visible, onClose, onLogout }: Props) {
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           <View style={styles.top}>
-            <Text style={styles.paw}>🐾</Text>
+            <MaterialCommunityIcons name="paw" size={40} color="#1C1C1E" />
             <Text style={styles.appName}>PetRadar</Text>
             <Text style={styles.tagline}>Помагай на изгубените любимци</Text>
           </View>
@@ -61,6 +63,15 @@ export default function SettingsDrawer({ visible, onClose, onLogout }: Props) {
           <View style={styles.divider} />
 
           <View style={styles.bottom}>
+            <TouchableOpacity
+              style={styles.refreshBtn}
+              onPress={() => { dismiss(); setTimeout(onRefresh, 280); }}
+              activeOpacity={0.8}
+            >
+              <Refresh width={18} height={18} color="#1C1C1E" strokeWidth={2} />
+              <Text style={styles.refreshText}>Обнови картата</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.logoutBtn}
               onPress={() => { dismiss(); setTimeout(onLogout, 280); }}
@@ -123,6 +134,21 @@ const styles = StyleSheet.create({
   },
   bottom: {
     marginTop: "auto",
+    gap: 10,
+  },
+  refreshBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#F2F2F7",
+    borderRadius: 14,
+  },
+  refreshText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1C1C1E",
   },
   logoutBtn: {
     flexDirection: "row",

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -91,8 +92,11 @@ export default function EditMarkerSheet({ visible, kind, marker, onClose, onSave
                 onPress={() => { set("petType", val); set("breed", ""); set("age", ""); }}
                 activeOpacity={0.7}
               >
+                {val === "other"
+                  ? <MaterialCommunityIcons name="paw" size={16} color={form.petType === val ? "#fff" : "#6C6C70"} />
+                  : null}
                 <Text style={[styles.pillText, form.petType === val && styles.pillTextActive]}>
-                  {val === "dog" ? "🐶 Куче" : val === "cat" ? "🐱 Коте" : "🐾 Друго"}
+                  {val === "dog" ? "🐶 Куче" : val === "cat" ? "🐱 Коте" : "Друго"}
                 </Text>
               </TouchableOpacity>
             ))}

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -53,7 +54,7 @@ export default function SignupScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.top}>
-          <Text style={styles.paw}>🐾</Text>
+          <MaterialCommunityIcons name="paw" size={48} color="#1C1C1E" />
           <Text style={styles.appName}>PetRadar</Text>
           <Text style={styles.tagline}>
             Помогни на изгубените любимци да се приберат.

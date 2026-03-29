@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -43,7 +44,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.top}>
-        <Text style={styles.paw}>🐾</Text>
+        <MaterialCommunityIcons name="paw" size={48} color="#1C1C1E" />
         <Text style={styles.appName}>PetRadar</Text>
         <Text style={styles.tagline}>Помогни на изгубените любимци да се приберат.</Text>
       </View>

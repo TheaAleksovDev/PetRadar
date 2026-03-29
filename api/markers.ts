@@ -92,10 +92,16 @@ type UpdatePayload = {
   name?: string;
   phone?: string;
   note?: string;
+  connectedParent?: string;
+  connectedChild?: string;
 };
 
 export async function updateMarker(id: string, payload: UpdatePayload): Promise<void> {
   await apiClient.patch(`/api/markers/${id}`, payload);
+}
+
+export async function connectMarker(id: string, payload: { connectedParent?: string; connectedChild?: string }): Promise<void> {
+  await apiClient.patch(`/api/markers/${id}/connect`, payload);
 }
 
 export async function fetchAllMarkers(): Promise<{ sightings: SightingMarker[]; lost: LostMarker[] }> {
@@ -116,6 +122,16 @@ export async function deleteMarker(id: string): Promise<void> {
 
 export async function markAsFound(id: string): Promise<void> {
   await apiClient.patch(`/api/markers/${id}/found`);
+}
+
+export async function uploadImage(localUri: string): Promise<string> {
+  const filename = localUri.split("/").pop() || "image.jpg";
+  const formData = new FormData();
+  formData.append("file", { uri: localUri, name: filename, type: "image/jpeg" } as any);
+  const { data } = await apiClient.post("/api/images", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data.url;
 }
 
 export async function addTipToMarker(markerId: string, tip: TipPayload): Promise<Tip> {

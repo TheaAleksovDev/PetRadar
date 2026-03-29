@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Xmark } from "iconoir-react-native";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -80,7 +81,9 @@ export default function FiltersModal({ visible, filters, onApply, onClose }: Pro
                   onPress={() => set("petType", val)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.petEmoji}>{emoji}</Text>
+                  {emoji === "🐾"
+                    ? <MaterialCommunityIcons name="paw" size={22} color={local.petType === val ? "#fff" : "#1C1C1E"} />
+                    : <Text style={styles.petEmoji}>{emoji}</Text>}
                   <Text style={[styles.petLabel, local.petType === val && styles.petLabelActive]}>
                     {label}
                   </Text>

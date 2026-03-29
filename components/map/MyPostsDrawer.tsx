@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { BinFull, EditPencil } from "iconoir-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -152,7 +153,7 @@ export default function MyPostsDrawer({
 
           {items.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🐾</Text>
+              <MaterialCommunityIcons name="paw" size={40} color="#C7C7CC" />
               <Text style={styles.emptyText}>Нямаш публикации</Text>
             </View>
           ) : (
@@ -182,7 +183,7 @@ export default function MyPostsDrawer({
                       />
                     ) : (
                       <View style={[styles.img, styles.imgPlaceholder, found && styles.imgFound]}>
-                        <Text style={styles.imgPlaceholderText}>🐾</Text>
+                        <MaterialCommunityIcons name="paw" size={24} color="#C7C7CC" />
                       </View>
                     )}
                     <View style={styles.info}>
@@ -211,13 +212,15 @@ export default function MyPostsDrawer({
                       <View style={styles.metaRow}>
                         <Text style={styles.meta} numberOfLines={1}>{timeAgo(m.createdAt)}</Text>
                         <View style={styles.cardActions}>
-                          <TouchableOpacity
-                            onPress={() => onEdit(item.kind, m)}
-                            activeOpacity={0.6}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-                          >
-                            <EditPencil width={13} height={13} color="#AEAEB2" strokeWidth={1.8} />
-                          </TouchableOpacity>
+                          {!found && (
+                            <TouchableOpacity
+                              onPress={() => onEdit(item.kind, m)}
+                              activeOpacity={0.6}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+                            >
+                              <EditPencil width={13} height={13} color="#AEAEB2" strokeWidth={1.8} />
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
                             onPress={() =>
                               Alert.alert(

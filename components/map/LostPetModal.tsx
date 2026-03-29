@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { MediaImage, NavArrowLeft, Undo } from "iconoir-react-native";
 import { useState } from "react";
@@ -166,7 +167,9 @@ export default function LostPetModal({
                       }}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.petTypeEmoji}>{emoji}</Text>
+                      {emoji === "🐾"
+                        ? <MaterialCommunityIcons name="paw" size={20} color={form.petType === val ? "#fff" : "#1C1C1E"} />
+                        : <Text style={styles.petTypeEmoji}>{emoji}</Text>}
                       <Text style={[styles.petTypePillText, form.petType === val && styles.petTypePillTextActive]}>
                         {label}
                       </Text>

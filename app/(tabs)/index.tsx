@@ -17,6 +17,7 @@ import MapView, { PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 import {
   addTipToMarker,
+  connectMarker,
   createMarker,
   deleteMarker,
   fetchAllMarkers,
@@ -25,6 +26,7 @@ import {
   reopenMarker,
   markAsFound,
   updateMarker,
+  uploadImage,
 } from "@/api/markers";
 import CameraScreen from "@/components/map/CameraScreen";
 import FabMenu from "@/components/map/FabMenu";
@@ -162,9 +164,12 @@ export default function HomeScreen() {
   const [myMarkerIds, setMyMarkerIds] = useState<Set<string>>(new Set());
   const [myOwnMarkers, setMyOwnMarkers] = useState<MyPostItem[]>([]);
   const [markersLoading, setMarkersLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [editingKind, setEditingKind] = useState<"seen" | "lost" | null>(null);
   const [editingMarker, setEditingMarker] = useState<SightingMarker | LostMarker | null>(null);
+
+  const pendingConnectionRef = useRef<{ sightingTempId: string; parentId: string } | null>(null);
 
   const { logout, token } = useAuth();
   const router = useRouter();
@@ -210,17 +215,37 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!token) return;
-    setMarkersLoading(true);
-    fetchAllMarkers()
-      .then(({ sightings, lost }) => {
-        setMarkers(sightings);
-        setLostMarkers(lost);
-      })
-      .catch(() => {})
-      .finally(() => setMarkersLoading(false));
-    fetchMyMarkerIds()
-      .then((ids) => setMyMarkerIds(ids))
-      .catch(() => {});
+
+    const loadAll = (initial = false) => {
+      if (initial) setMarkersLoading(true);
+      setRefreshing(true);
+      fetchAllMarkers()
+        .then(({ sightings, lost }) => {
+          setMarkers((prev) => {
+            const tempIds = new Set(prev.map((m) => m.id).filter((id) => !/^\d+$/.test(id)));
+            const merged = [...sightings];
+            tempIds.forEach((id) => {
+              const temp = prev.find((m) => m.id === id);
+              if (temp) merged.push(temp);
+            });
+            return merged;
+          });
+          setLostMarkers((prev) => {
+            const tempIds = new Set(prev.map((m) => m.id).filter((id) => !/^\d+$/.test(id)));
+            const merged = [...lost];
+            tempIds.forEach((id) => {
+              const temp = prev.find((m) => m.id === id);
+              if (temp) merged.push(temp);
+            });
+            return merged;
+          });
+        })
+        .catch(() => {})
+        .finally(() => { if (initial) setMarkersLoading(false); setRefreshing(false); });
+    };
+
+    loadAll(true);
+    fetchMyMarkerIds().then((ids) => setMyMarkerIds(ids)).catch(() => {});
     fetchMyMarkers()
       .then(({ seen, lost }) =>
         setMyOwnMarkers([
@@ -229,6 +254,9 @@ export default function HomeScreen() {
         ])
       )
       .catch(() => {});
+
+    const interval = setInterval(() => loadAll(false), 30_000);
+    return () => clearInterval(interval);
   }, [token]);
 
   const updatePositions = async () => {
@@ -291,34 +319,47 @@ export default function HomeScreen() {
       ...prev,
     ]);
 
-    createMarker({
-      markerType: "SEEN",
-      petType,
-      breed: form.breed,
-      color: form.color,
-      age: form.age,
-      note: form.note || undefined,
-      imageUri,
-      latitude: sightingLocation.latitude,
-      longitude: sightingLocation.longitude,
-      createdAt,
-    })
-      .then(({ id }) => {
-        setMarkers((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, id } : m)),
-        );
-        setPendingSightingId(id);
-        setMyMarkerIds((prev) => {
-          const next = new Set(prev);
-          next.delete(tempId);
-          next.add(id);
-          return next;
-        });
-        setMyOwnMarkers((prev) =>
-          prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
-        );
+    (async () => {
+      const serverUri = imageUri ? await uploadImage(imageUri).catch(() => "") : "";
+      if (serverUri) {
+        setMarkers((prev) => prev.map((m) => m.id === tempId ? { ...m, imageUri: serverUri } : m));
+        setMyOwnMarkers((prev) => prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, imageUri: serverUri } } as MyPostItem : item));
+      }
+      createMarker({
+        markerType: "SEEN",
+        petType,
+        breed: form.breed,
+        color: form.color,
+        age: form.age,
+        note: form.note || undefined,
+        imageUri: serverUri,
+        latitude: sightingLocation.latitude,
+        longitude: sightingLocation.longitude,
+        createdAt,
       })
-      .catch(() => {});
+        .then(({ id }) => {
+          setMarkers((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, id } : m)),
+          );
+          setPendingSightingId(id);
+          setMyMarkerIds((prev) => {
+            const next = new Set(prev);
+            next.delete(tempId);
+            next.add(id);
+            return next;
+          });
+          setMyOwnMarkers((prev) =>
+            prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
+          );
+          const pending = pendingConnectionRef.current;
+          if (pending?.sightingTempId === tempId) {
+            connectMarker(id, { connectedParent: pending.parentId }).catch(() => {});
+            connectMarker(pending.parentId, { connectedChild: id }).catch(() => {});
+            pendingConnectionRef.current = null;
+          }
+        })
+        .catch(() => {});
+    })();
 
     const norm = (s: string) => s.trim().toLowerCase();
     const haversine = (a: Coords, b: Coords) => {
@@ -426,35 +467,42 @@ export default function HomeScreen() {
       ...prev,
     ]);
 
-    createMarker({
-      markerType: "LOST",
-      petType,
-      breed: data.breed,
-      color: data.color,
-      age: data.age,
-      name: data.name,
-      phone: data.phone,
-      note: data.note || undefined,
-      imageUri: data.imageUri,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      createdAt,
-    })
-      .then(({ id }) => {
-        setLostMarkers((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, id } : m)),
-        );
-        setMyMarkerIds((prev) => {
-          const next = new Set(prev);
-          next.delete(tempId);
-          next.add(id);
-          return next;
-        });
-        setMyOwnMarkers((prev) =>
-          prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
-        );
+    (async () => {
+      const serverUri = data.imageUri ? await uploadImage(data.imageUri).catch(() => "") : "";
+      if (serverUri) {
+        setLostMarkers((prev) => prev.map((m) => m.id === tempId ? { ...m, imageUri: serverUri } : m));
+        setMyOwnMarkers((prev) => prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, imageUri: serverUri } } as MyPostItem : item));
+      }
+      createMarker({
+        markerType: "LOST",
+        petType,
+        breed: data.breed,
+        color: data.color,
+        age: data.age,
+        name: data.name,
+        phone: data.phone,
+        note: data.note || undefined,
+        imageUri: serverUri,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        createdAt,
       })
-      .catch(() => {});
+        .then(({ id }) => {
+          setLostMarkers((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, id } : m)),
+          );
+          setMyMarkerIds((prev) => {
+            const next = new Set(prev);
+            next.delete(tempId);
+            next.add(id);
+            return next;
+          });
+          setMyOwnMarkers((prev) =>
+            prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
+          );
+        })
+        .catch(() => {});
+    })();
   };
 
   const openSighting = (marker: SightingMarker) => {
@@ -502,6 +550,7 @@ export default function HomeScreen() {
       : null;
   const currentChainPinned = pinnedChains.some((p) => p.id === selectedChainId);
   const previewColor = CHAIN_COLORS[pinnedChains.length % CHAIN_COLORS.length];
+
   const chainsToRender: PinnedChain[] = [
     ...pinnedChains,
     ...(selectedMarker && !currentChainPinned && selectedChain.length > 0
@@ -629,6 +678,7 @@ export default function HomeScreen() {
                   backgroundColor: isLast ? "#16A34A" : color,
                   borderWidth: 2,
                   borderColor: "#fff",
+                  opacity: 1,
                 }}
               />
             );
@@ -773,13 +823,18 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.topLeftControls}>
-        <TouchableOpacity
-          style={styles.settingsBtn}
-          onPress={() => setSettingsVisible(true)}
-          activeOpacity={0.85}
-        >
-          <Settings width={16} height={16} color="#1C1C1E" strokeWidth={2} />
-        </TouchableOpacity>
+        <View style={styles.settingsBtnRow}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => setSettingsVisible(true)}
+            activeOpacity={0.85}
+          >
+            <Settings width={16} height={16} color="#1C1C1E" strokeWidth={2} />
+          </TouchableOpacity>
+          {refreshing && (
+            <ActivityIndicator size="small" color="#1C1C1E" style={styles.refreshSpinner} />
+          )}
+        </View>
 
         {pinnedChains.length > 0 && filters.view !== "list" && (
           <PathNotification
@@ -970,6 +1025,12 @@ export default function HomeScreen() {
                 m.id === marker.id ? { ...m, connectedChild: sid } : m,
               ),
             );
+            if (/^\d+$/.test(sid)) {
+              connectMarker(sid, { connectedParent: marker.id }).catch(() => {});
+              connectMarker(marker.id, { connectedChild: sid }).catch(() => {});
+            } else {
+              pendingConnectionRef.current = { sightingTempId: sid, parentId: marker.id };
+            }
             setPendingSightingId(null);
             const newSighting = markers.find((m) => m.id === sid);
             if (newSighting) openSighting(newSighting);
@@ -1010,6 +1071,12 @@ export default function HomeScreen() {
                 return m;
               }),
             );
+            if (/^\d+$/.test(sid)) {
+              connectMarker(sid, { connectedParent: marker.id }).catch(() => {});
+              connectMarker(marker.id, { connectedChild: sid }).catch(() => {});
+            } else {
+              pendingConnectionRef.current = { sightingTempId: sid, parentId: marker.id };
+            }
             setPendingSightingId(null);
             if (newSighting) {
               setAfterThankYou(() => () => {
@@ -1051,6 +1118,16 @@ export default function HomeScreen() {
       <SettingsDrawer
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
+        onRefresh={() => {
+          setRefreshing(true);
+          fetchAllMarkers()
+            .then(({ sightings, lost }) => {
+              setMarkers(sightings);
+              setLostMarkers(lost);
+            })
+            .catch(() => {})
+            .finally(() => setRefreshing(false));
+        }}
         onLogout={() => {
           logout();
           router.replace("/login");
@@ -1090,6 +1167,9 @@ export default function HomeScreen() {
           } else {
             setLostMarkers((prev) => prev.filter((m) => m.id !== marker.id));
           }
+          setPinnedChains([]);
+          setSelectedMarker(null);
+          setSelectedChain([]);
           setMyMarkerIds((prev) => { const next = new Set(prev); next.delete(marker.id); return next; });
           if (/^\d+$/.test(marker.id)) deleteMarker(marker.id).catch(() => {});
         }}
@@ -1153,6 +1233,11 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: "flex-start",
   },
+  settingsBtnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   settingsBtn: {
     width: 40,
     height: 40,
@@ -1160,6 +1245,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  refreshSpinner: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
