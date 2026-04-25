@@ -1,4 +1,9 @@
+import Constants from 'expo-constants';
 import axios from 'axios';
+
+const devHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL
+  ?? (devHost ? `http://${devHost}:8080` : 'http://localhost:8080');
 
 let _token: string | null = null;
 let _onUnauthorized: (() => void) | null = null;
@@ -12,7 +17,7 @@ export function setUnauthorizedHandler(handler: () => void) {
 }
 
 const apiClient = axios.create({
-  baseURL: 'http://10.198.131.45:8080',
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -122,9 +122,14 @@ export default function FiltersModal({ visible, filters, onApply, onClose }: Pro
 
           </ScrollView>
 
-          <TouchableOpacity style={styles.applyBtn} onPress={() => { onApply(local); onClose(); }} activeOpacity={0.85}>
-            <Text style={styles.applyBtnText}>Приложи филтрите</Text>
-          </TouchableOpacity>
+          <View style={styles.btnRow}>
+            <TouchableOpacity style={styles.resetBtn} onPress={() => { const reset = { ...DEFAULT_FILTERS, view: local.view }; onApply(reset); onClose(); }} activeOpacity={0.85}>
+              <Text style={styles.resetBtnText}>Изчисти</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.applyBtn} onPress={() => { onApply(local); onClose(); }} activeOpacity={0.85}>
+              <Text style={styles.applyBtnText}>Приложи</Text>
+            </TouchableOpacity>
+          </View>
         </View>
     </BottomSheet>
   );
@@ -246,9 +251,26 @@ const styles = StyleSheet.create({
   petLabelActive: {
     color: "#fff",
   },
-  applyBtn: {
+  btnRow: {
+    flexDirection: "row",
     marginHorizontal: 20,
     marginTop: 8,
+    gap: 10,
+  },
+  resetBtn: {
+    flex: 1,
+    backgroundColor: "#F2F2F7",
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  resetBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1C1C1E",
+  },
+  applyBtn: {
+    flex: 2,
     backgroundColor: "#1C1C1E",
     paddingVertical: 16,
     borderRadius: 16,

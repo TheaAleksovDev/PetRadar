@@ -52,6 +52,7 @@ import PetMarker, {
   PIN_H,
   PIN_W,
 } from "@/components/map/PetMarker";
+import ARLocationView from "@/components/map/ARLocationView";
 import ReportModal from "@/components/map/ReportModal";
 import SettingsDrawer from "@/components/map/SettingsDrawer";
 import SightingMatchModal from "@/components/map/SightingMatchModal";
@@ -168,6 +169,7 @@ export default function HomeScreen() {
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [editingKind, setEditingKind] = useState<"seen" | "lost" | null>(null);
   const [editingMarker, setEditingMarker] = useState<SightingMarker | LostMarker | null>(null);
+  const [arVisible, setArVisible] = useState(false);
 
   const pendingConnectionRef = useRef<{ sightingTempId: string; parentId: string } | null>(null);
 
@@ -590,7 +592,7 @@ export default function HomeScreen() {
     | { type: "seen"; marker: SightingMarker }
     | { type: "lost"; marker: LostMarker };
   const listItems: ListItem[] = [
-    ...visibleSightings.map((m) => ({ type: "seen" as const, marker: m })),
+    ...visibleSightings.filter((m) => !m.connectedChild).map((m) => ({ type: "seen" as const, marker: m })),
     ...visibleLost.map((m) => ({ type: "lost" as const, marker: m })),
   ];
   if (filters.sortBy === "recent")
@@ -619,6 +621,8 @@ export default function HomeScreen() {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
+        showsUserLocation
+        showsMyLocationButton={false}
         onMapReady={updatePositions}
         onRegionChange={(r) => {
           setLatDelta(r.latitudeDelta);
@@ -894,6 +898,13 @@ export default function HomeScreen() {
           activeOpacity={0.85}
         >
           <MaterialCommunityIcons name="paw" size={18} color="#1C1C1E" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.filterBtn}
+          onPress={() => setArVisible(true)}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons name="camera-iris" size={18} color="#1C1C1E" />
         </TouchableOpacity>
       </View>
 
@@ -1175,6 +1186,17 @@ export default function HomeScreen() {
         }}
       />
 
+      {arVisible && userLocation && (
+        <ARLocationView
+          lostMarkers={lostMarkers}
+          sightings={markers}
+          userLocation={userLocation}
+          onSelectLost={(m) => { setArVisible(false); setSelectedLostMarker(m); }}
+          onSelectSighting={(m) => { setArVisible(false); openSighting(m); }}
+          onClose={() => setArVisible(false)}
+        />
+      )}
+
       <EditMarkerSheet
         visible={editSheetVisible}
         kind={editingKind}
@@ -1219,6 +1241,7 @@ export default function HomeScreen() {
         onResetLocation={() => setSightingLocation(userLocation)}
         onSubmit={handleSightingSubmit}
       />
+
     </View>
   );
 }
