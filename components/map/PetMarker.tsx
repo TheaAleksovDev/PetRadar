@@ -1,4 +1,5 @@
 import { Image, StyleSheet, Text, View } from "react-native";
+import TimeTag from "./TimeTag";
 import type { LostMarker, SightingMarker } from "./types";
 
 const C = 64;
@@ -25,14 +26,6 @@ export const LOST_PIN_H = PIN_H;
 const SIGHTING_COLOR = "#22C55E";
 const LOST_COLOR = "#EF4444";
 
-function timeAgo(ts: number): string {
-  const minutes = Math.floor((Date.now() - ts) / 60000);
-  if (minutes < 1) return "Сега";
-  if (minutes < 60) return `Преди ${minutes}м`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Преди ${hours}ч`;
-  return `Преди ${Math.floor(hours / 24)} д`;
-}
 
 type Props = {
   marker: SightingMarker | LostMarker;
@@ -73,7 +66,7 @@ function SightingPetMarker({
         <Image source={{ uri: marker.imageUri }} style={s.img} />
       </View>
       <View style={s.pill}>
-        <Text style={s.pillText}>{timeAgo(marker.createdAt)}</Text>
+        <TimeTag ts={marker.createdAt} fontSize={10} color="#fff" />
       </View>
       <View style={s.pointer} />
     </View>

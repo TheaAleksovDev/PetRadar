@@ -5,7 +5,6 @@ import {
   Image,
   Linking,
   Modal,
-  PanResponder,
   ScrollView,
   Share,
   StyleSheet,
@@ -14,50 +13,26 @@ import {
   View,
 } from "react-native";
 import LeaveCommentModal from "./LeaveCommentModal";
-import type { Coords, LostMarker, Tip } from "./types";
+import type { Comment, Coords, LostMarker } from "./types";
+import { haversineKm, formatDistance } from "./utils";
+import TimeTag from "./TimeTag";
 
 const SHEET_HEIGHT = 600;
-const DRAG_THRESHOLD = 60;
 const LOST_COLOR = "#EF4444";
-
-function haversineKm(a: Coords, b: Coords): number {
-  const R = 6371;
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.latitude * Math.PI) / 180) *
-      Math.cos((b.latitude * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-}
-
-function formatDistance(km: number): string {
-  if (km < 1) return `На ${Math.round(km * 1000)}м. от теб`;
-  return `На ${km.toFixed(1)}км. от теб`;
-}
-
-function timeAgo(ts: number): string {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return "Току-що";
-  if (diff < 3600) return `Преди ${Math.floor(diff / 60)}м.`;
-  if (diff < 86400) return `Преди ${Math.floor(diff / 3600)}ч.`;
-  return `Преди ${Math.floor(diff / 86400)}д.`;
-}
 
 type Props = {
   marker: LostMarker | null;
   userLocation: Coords;
   onClose: () => void;
-  onSubmitTip?: (markerId: string, comment: string, location: Coords | null) => void;
+  onSubmitComment?: (markerId: string, comment: string, location: Coords | null) => void;
   isOwner?: boolean;
   onMarkFound?: () => void;
   onReopen?: () => void;
 };
 
-export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitTip, isOwner, onMarkFound, onReopen }: Props) {
-  const [tipVisible, setTipVisible] = useState(false);
-  const [tips, setTips] = useState<Tip[]>([]);
+export default function LostPetDetailSheet({ marker, userLocation, onClose, onSubmitComment, isOwner, onMarkFound, onReopen }: Props) {
+  const [commentVisible, setCommentVisible] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const onCloseRef = useRef(onClose);
@@ -65,7 +40,7 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
 
   useEffect(() => {
     if (marker) {
-      setTips(marker.tips ?? []);
+      setComments(marker.comments ?? []);
       translateY.setValue(SHEET_HEIGHT);
       Animated.spring(translateY, {
         toValue: 0,
@@ -84,36 +59,11 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
     }).start(() => onCloseRef.current());
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > DRAG_THRESHOLD || g.vy > 0.5) {
-          Animated.timing(translateY, {
-            toValue: SHEET_HEIGHT,
-            duration: 220,
-            useNativeDriver: true,
-          }).start(() => onCloseRef.current());
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 220,
-          }).start();
-        }
-      },
-    }),
-  ).current;
 
   if (!marker) return null;
 
   const km = haversineKm(userLocation, marker.coordinate);
   const dist = formatDistance(km);
-  const time = timeAgo(marker.createdAt);
 
   const handleCall = () => Linking.openURL(`tel:${marker.phone}`);
 
@@ -122,16 +72,16 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
       message: `Търси се ${marker.name} — ${marker.breed} (${marker.color}), ${marker.age}.\n на собственика: ${marker.phone}${marker.note ? `\n${marker.note}` : ""}`,
     });
 
-  const handleTipSubmit = (comment: string, location: Coords | null) => {
-    const newTip: Tip = {
+  const handleCommentSubmit = (comment: string, location: Coords | null) => {
+    const newComment: Comment = {
       id: Date.now().toString(),
       comment,
       location: location ?? undefined,
       createdAt: Date.now(),
     };
-    setTips((prev) => [...prev, newTip]);
-    setTipVisible(false);
-    onSubmitTip?.(marker.id, comment, location);
+    setComments((prev) => [...prev, newComment]);
+    setCommentVisible(false);
+    onSubmitComment?.(marker.id, comment, location);
   };
 
   return (
@@ -150,7 +100,7 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
 
           <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-            <View {...panResponder.panHandlers}>
+            <View>
               <View style={styles.handle} />
               <View style={styles.header}>
                 <Text style={styles.name} numberOfLines={1}>{marker.name}</Text>
@@ -193,7 +143,7 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
                   <View style={styles.divider} />
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Обявено</Text>
-                    <Text style={styles.infoValue}>{time}</Text>
+                    <TimeTag ts={marker.createdAt} color="#1C1C1E" fontSize={13} />
                   </View>
                   <View style={styles.divider} />
                   <View style={styles.infoRow}>
@@ -230,7 +180,7 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
                     </View>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity style={styles.iconBtn} onPress={() => setTipVisible(true)} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => setCommentVisible(true)} activeOpacity={0.8}>
                   <ChatLines width={18} height={18} color="#fff" strokeWidth={1.8} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.iconBtn} onPress={handleShare} activeOpacity={0.8}>
@@ -238,21 +188,21 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
                 </TouchableOpacity>
               </View>
 
-              {tips.length > 0 && (
+              {comments.length > 0 && (
                 <View style={styles.tipsSection}>
-                  <Text style={styles.tipsSectionLabel}>Коментари ({tips.length})</Text>
-                  {tips.map((tip) => (
-                    <View key={tip.id} style={styles.tipCard}>
+                  <Text style={styles.tipsSectionLabel}>Коментари ({comments.length})</Text>
+                  {comments.map((c) => (
+                    <View key={c.id} style={styles.tipCard}>
                       <View style={styles.tipRow}>
-                        <Text style={styles.tipComment}>{tip.comment}</Text>
-                        <Text style={styles.tipTime}>{timeAgo(tip.createdAt)}</Text>
+                        <Text style={styles.tipComment}>{c.comment}</Text>
+                        <TimeTag ts={c.createdAt} fontSize={11} />
                       </View>
-                      {tip.location && (
+                      {c.location && (
                         <TouchableOpacity
                           style={styles.tipLocationRow}
                           onPress={() =>
                             Linking.openURL(
-                              `https://maps.google.com/maps?q=${tip.location!.latitude},${tip.location!.longitude}`
+                              `https://maps.google.com/maps?q=${c.location!.latitude},${c.location!.longitude}`
                             )
                           }
                           activeOpacity={0.7}
@@ -270,10 +220,10 @@ export default function LostPetDetailSheet({ marker, userLocation, onClose, onSu
         </View>
 
         <LeaveCommentModal
-          visible={tipVisible}
+          visible={commentVisible}
           userLocation={userLocation}
-          onSubmit={handleTipSubmit}
-          onClose={() => setTipVisible(false)}
+          onSubmit={handleCommentSubmit}
+          onClose={() => setCommentVisible(false)}
         />
       </Modal>
     </>

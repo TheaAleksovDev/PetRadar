@@ -16,7 +16,7 @@ import {
 import MapView, { PROVIDER_GOOGLE, Region } from "react-native-maps";
 
 import {
-  addTipToMarker,
+  addCommentToMarker,
   connectMarker,
   createMarker,
   deleteMarker,
@@ -512,12 +512,12 @@ export default function HomeScreen() {
     setSelectedMarker(marker);
   };
 
-  const handleAddTip = (
+  const handleAddComment = (
     markerId: string,
     comment: string,
     location: Coords | null,
   ) => {
-    const tempTip = {
+    const tempComment = {
       id: Date.now().toString(),
       comment,
       location: location ?? undefined,
@@ -525,16 +525,16 @@ export default function HomeScreen() {
     };
     setLostMarkers((prev) =>
       prev.map((m) =>
-        m.id === markerId ? { ...m, tips: [...(m.tips ?? []), tempTip] } : m,
+        m.id === markerId ? { ...m, comments: [...(m.comments ?? []), tempComment] } : m,
       ),
     );
 
     if (/^\d+$/.test(markerId)) {
-      addTipToMarker(markerId, {
+      addCommentToMarker(markerId, {
         comment,
         latitude: location?.latitude,
         longitude: location?.longitude,
-        createdAt: tempTip.createdAt,
+        createdAt: tempComment.createdAt,
       }).catch(() => {});
     }
   };
@@ -576,12 +576,14 @@ export default function HomeScreen() {
   };
 
   const visibleSightings = markers
+    .filter((m) => !m.isFound)
     .filter(() => filters.show !== "missing")
     .filter(
       (m) =>
         filters.petType === "all" || (m.petType ?? "dog") === filters.petType,
     );
   const visibleLost = lostMarkers
+    .filter((m) => !m.isFound)
     .filter(() => filters.show !== "seen")
     .filter(
       (m) =>
@@ -606,8 +608,8 @@ export default function HomeScreen() {
   else if (filters.sortBy === "engagement")
     listItems.sort(
       (a, b) =>
-        ((b.marker as LostMarker).tips?.length ?? 0) -
-        ((a.marker as LostMarker).tips?.length ?? 0),
+        ((b.marker as LostMarker).comments?.length ?? 0) -
+        ((a.marker as LostMarker).comments?.length ?? 0),
     );
   else if (filters.sortBy === "type")
     listItems.sort((a, b) =>
@@ -943,7 +945,7 @@ export default function HomeScreen() {
         marker={selectedLostMarker}
         userLocation={userLocation}
         onClose={() => setSelectedLostMarker(null)}
-        onSubmitTip={handleAddTip}
+        onSubmitComment={handleAddComment}
         isOwner={
           selectedLostMarker ? myMarkerIds.has(selectedLostMarker.id) : false
         }
@@ -1188,8 +1190,8 @@ export default function HomeScreen() {
 
       {arVisible && userLocation && (
         <ARLocationView
-          lostMarkers={lostMarkers}
-          sightings={markers}
+          lostMarkers={visibleLost}
+          sightings={visibleSightings}
           userLocation={userLocation}
           onSelectLost={(m) => { setArVisible(false); setSelectedLostMarker(m); }}
           onSelectSighting={(m) => { setArVisible(false); openSighting(m); }}

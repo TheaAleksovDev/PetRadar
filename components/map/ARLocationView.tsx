@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import type { Coords, LostMarker, SightingMarker } from "./types";
+import { haversineKm } from "./utils";
 
 type Props = {
   lostMarkers: LostMarker[];
@@ -29,21 +30,19 @@ type ARMarker =
   | { kind: "lost"; data: LostMarker }
   | { kind: "sighting"; data: SightingMarker };
 
+type Positioned = {
+  marker: ARMarker;
+  km: number;
+  x: number;
+  y: number;
+  angleDiff: number;
+  inFOV: boolean;
+  scale: number;
+};
+
 const { width: SW, height: SH } = Dimensions.get("window");
 const FOV = 60;
 const MAX_DIST_KM = 2;
-
-function haversineKm(a: Coords, b: Coords): number {
-  const R = 6371;
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.latitude * Math.PI) / 180) *
-      Math.cos((b.latitude * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-}
 
 function bearing(from: Coords, to: Coords): number {
   const lat1 = (from.latitude * Math.PI) / 180;
@@ -70,28 +69,32 @@ export default function ARLocationView({
 }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [heading, setHeading] = useState(0);
-  const [pitch, setPitch] = useState(0); // device tilt -90..90
+  const [pitch, setPitch] = useState(0);
   const [location, setLocation] = useState<Coords>(userLocation);
-  const headingBuf = useRef<number[]>([]);
+  const smoothedHeading = useRef(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const markerAnimsRef = useRef<Record<string, { x: Animated.Value; y: Animated.Value }>>({});
+  const inFOVRef = useRef<Set<string>>(new Set());
 
-  // Compass
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
+    const ALPHA = 0.12;
     Location.watchHeadingAsync((h) => {
       const raw = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
-      headingBuf.current.push(raw);
-      if (headingBuf.current.length > 8) headingBuf.current.shift();
-      const sinSum = headingBuf.current.reduce((s, h) => s + Math.sin((h * Math.PI) / 180), 0);
-      const cosSum = headingBuf.current.reduce((s, h) => s + Math.cos((h * Math.PI) / 180), 0);
-      const avg = ((Math.atan2(sinSum, cosSum) * 180) / Math.PI + 360) % 360;
-      setHeading(avg);
+      const prev = smoothedHeading.current;
+      const prevRad = (prev * Math.PI) / 180;
+      const newRad = (raw * Math.PI) / 180;
+      const sinS = (1 - ALPHA) * Math.sin(prevRad) + ALPHA * Math.sin(newRad);
+      const cosS = (1 - ALPHA) * Math.cos(prevRad) + ALPHA * Math.cos(newRad);
+      const next = ((Math.atan2(sinS, cosS) * 180) / Math.PI + 360) % 360;
+      if (Math.abs(next - prev) > 0.3) {
+        smoothedHeading.current = next;
+        setHeading(next);
+      }
     }).then((s) => { sub = s; });
     return () => { sub?.remove(); };
   }, []);
 
-  // GPS
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
     Location.watchPositionAsync(
@@ -101,7 +104,6 @@ export default function ARLocationView({
     return () => { sub?.remove(); };
   }, []);
 
-  // Accelerometer for pitch
   useEffect(() => {
     Accelerometer.setUpdateInterval(100);
     const sub = Accelerometer.addListener(({ x, y, z }) => {
@@ -111,7 +113,6 @@ export default function ARLocationView({
     return () => sub.remove();
   }, []);
 
-  // Pulsing animation
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
@@ -140,37 +141,38 @@ export default function ARLocationView({
     );
   }
 
-  // Build marker list
   const allMarkers: ARMarker[] = [
     ...lostMarkers.map((m): ARMarker => ({ kind: "lost", data: m })),
     ...sightings.map((m): ARMarker => ({ kind: "sighting", data: m })),
   ];
 
-  // Compute screen positions
-  const positioned = allMarkers
+  const positioned: Positioned[] = allMarkers
     .map((marker) => {
       const km = haversineKm(location, marker.data.coordinate);
       if (km > MAX_DIST_KM) return null;
       const b = bearing(location, marker.data.coordinate);
       const angleDiff = ((b - heading + 540) % 360) - 180;
       const x = SW / 2 + angleDiff * (SW / FOV);
-      // Vertical: center of screen adjusted by device pitch
-      // pitch=0 (flat phone) → marker at screen center
-      // pitch=90 (upright) → marker near horizon (upper half)
-      const pitchOffset = (pitch - 60) * (SH / 90); // 60° is roughly upright
+      const pitchOffset = (pitch - 60) * (SH / 90);
       const y = SH / 2 - pitchOffset;
-      const inFOV = Math.abs(angleDiff) < FOV / 2;
-      // Scale by distance: 50m → big, 2km → small
-      const scale = Math.max(0.45, 1 - km / MAX_DIST_KM * 0.6);
+      const id = marker.data.id;
+      const wasInFOV = inFOVRef.current.has(id);
+      const enterThreshold = FOV / 2 - 4;
+      const exitThreshold = FOV / 2 + 4;
+      const inFOV = wasInFOV
+        ? Math.abs(angleDiff) < exitThreshold
+        : Math.abs(angleDiff) < enterThreshold;
+      if (inFOV) inFOVRef.current.add(id);
+      else inFOVRef.current.delete(id);
+      const scale = Math.max(0.45, 1 - (km / MAX_DIST_KM) * 0.6);
       return { marker, km, x, y, angleDiff, inFOV, scale };
     })
-    .filter(Boolean) as NonNullable<ReturnType<typeof positioned[0]>>[];
+    .filter((p): p is Positioned => p !== null);
 
   const inView = positioned.filter((p) => p.inFOV);
   const offLeft = positioned.filter((p) => !p.inFOV && p.angleDiff < 0);
   const offRight = positioned.filter((p) => !p.inFOV && p.angleDiff > 0);
 
-  // Spring-animate each marker to its new screen position
   inView.forEach(({ marker, x, y, scale }) => {
     const id = marker.data.id;
     const cardW = 130 * scale;
@@ -186,14 +188,14 @@ export default function ARLocationView({
       Animated.spring(markerAnimsRef.current[id].x, {
         toValue: targetLeft,
         useNativeDriver: false,
-        tension: 50,
-        friction: 12,
+        tension: 30,
+        friction: 18,
       }).start();
       Animated.spring(markerAnimsRef.current[id].y, {
         toValue: targetTop,
         useNativeDriver: false,
-        tension: 50,
-        friction: 12,
+        tension: 30,
+        friction: 18,
       }).start();
     }
   });
@@ -203,8 +205,7 @@ export default function ARLocationView({
       <View style={styles.container}>
         <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
-        {/* In-view markers */}
-        {inView.map(({ marker, km, x, y, scale }, i) => {
+        {inView.map(({ marker, km, x, y, scale }) => {
           const isLost = marker.kind === "lost";
           const name = isLost
             ? (marker.data as LostMarker).name
@@ -234,7 +235,6 @@ export default function ARLocationView({
               activeOpacity={0.85}
               style={{ alignItems: "center" }}
             >
-              {/* 3D arrow pointing down */}
               <View style={[styles.arrowWrapper, { transform: [{ perspective: 400 }, { rotateX: "30deg" }] }]}>
                 <View style={[styles.arrowShaft, { backgroundColor: color, width: 3 * scale, height: 24 * scale }]} />
                 <View style={[
@@ -248,7 +248,6 @@ export default function ARLocationView({
                 ]} />
               </View>
 
-              {/* Card */}
               <Animated.View style={[
                 styles.card,
                 {
@@ -278,7 +277,6 @@ export default function ARLocationView({
           );
         })}
 
-        {/* Off-screen edge arrows */}
         {offLeft.length > 0 && (
           <View style={styles.edgeLeft}>
             <View style={[styles.edgeArrow, { transform: [{ rotate: "180deg" }] }]}>
@@ -296,7 +294,6 @@ export default function ARLocationView({
           </View>
         )}
 
-        {/* Top bar */}
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
             <NavArrowLeft width={22} height={22} color="#fff" strokeWidth={2} />
@@ -310,7 +307,6 @@ export default function ARLocationView({
           </View>
         </View>
 
-        {/* Compass indicator */}
         <View style={styles.compass}>
           <Text style={styles.compassText}>{Math.round(heading)}°</Text>
         </View>

@@ -15,7 +15,7 @@ export type SightingMarker = {
   isFound?: boolean;
 };
 
-export type Tip = {
+export type Comment = {
   id: string;
   comment: string;
   location?: Coords;
@@ -34,7 +34,7 @@ export type LostMarker = {
   createdAt: number;
   note?: string;
   petType?: "dog" | "cat" | "other";
-  tips?: Tip[];
+  comments?: Comment[];
   connectedChild?: string;
   isFound?: boolean;
 };

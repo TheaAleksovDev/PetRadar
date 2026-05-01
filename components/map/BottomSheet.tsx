@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Dimensions, Modal, PanResponder, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, Dimensions, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
@@ -31,23 +31,6 @@ export default function BottomSheet({ visible, onClose, maxHeight = "85%", child
     ]).start(() => onCloseRef.current());
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 100 || g.vy > 0.5) {
-          dismissRef.current();
-        } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 300 }).start();
-        }
-      },
-    })
-  ).current;
-
   useEffect(() => {
     if (visible) {
       translateY.setValue(800);
@@ -68,7 +51,7 @@ export default function BottomSheet({ visible, onClose, maxHeight = "85%", child
         />
         <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: "100%" }}>
           <Animated.View style={{ height: sheetHeight, transform: [{ translateY }], backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: "hidden" }}>
-            <View style={styles.handleArea} {...panResponder.panHandlers}>
+            <View style={styles.handleArea}>
               <View style={styles.handle} />
             </View>
             {children}

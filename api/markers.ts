@@ -1,5 +1,5 @@
 import apiClient from "./client";
-import type { LostMarker, SightingMarker, Tip } from "@/components/map/types";
+import type { Comment, LostMarker, SightingMarker } from "@/components/map/types";
 
 type MarkerPayload = {
   markerType: "SEEN" | "LOST";
@@ -18,7 +18,7 @@ type MarkerPayload = {
   createdAt: number;
 };
 
-type TipPayload = {
+type CommentPayload = {
   comment: string;
   latitude?: number;
   longitude?: number;
@@ -57,7 +57,7 @@ function toLostMarker(m: any): LostMarker {
     petType: m.petType,
     connectedChild: m.connectedChild,
     isFound: m.found ?? false,
-    tips: (m.tips || []).map((t: any): Tip => ({
+    comments: (m.comments || []).map((t: any): Comment => ({
       id: String(t.id),
       comment: t.comment,
       location: t.latitude != null && t.longitude != null
@@ -134,8 +134,8 @@ export async function uploadImage(localUri: string): Promise<string> {
   return data.url;
 }
 
-export async function addTipToMarker(markerId: string, tip: TipPayload): Promise<Tip> {
-  const { data } = await apiClient.post(`/api/markers/${markerId}/tips`, tip);
+export async function addCommentToMarker(markerId: string, comment: CommentPayload): Promise<Comment> {
+  const { data } = await apiClient.post(`/api/markers/${markerId}/comments`, comment);
   return {
     id: String(data.id),
     comment: data.comment,

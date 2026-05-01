@@ -12,18 +12,12 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { Xmark } from "iconoir-react-native";
+import { timeAgo } from "./utils";
 import type { LostMarker } from "./types";
 import BottomSheet from "./BottomSheet";
 
 const CELL_W = (Dimensions.get("window").width - 16 * 2 - 12) / 2;
 
-function timeAgo(ts: number): string {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return "Току-що";
-  if (diff < 3600) return `Преди ${Math.floor(diff / 60)}м.`;
-  if (diff < 86400) return `Преди ${Math.floor(diff / 3600)}ч.`;
-  return `Преди ${Math.floor(diff / 86400)}д.`;
-}
 
 function formatAddress(geo: Location.LocationGeocodedAddress): string {
   const parts: string[] = [];

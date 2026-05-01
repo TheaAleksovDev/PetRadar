@@ -4,7 +4,6 @@ import {
   Animated,
   Image,
   Modal,
-  PanResponder,
   ScrollView,
   Share,
   StyleSheet,
@@ -13,34 +12,11 @@ import {
   View,
 } from "react-native";
 import type { Coords, SightingMarker } from "./types";
+import { haversineKm, formatDistance } from "./utils";
+import TimeTag from "./TimeTag";
 
 const SHEET_HEIGHT = 420;
-const DRAG_THRESHOLD = 60;
 
-function haversineKm(a: Coords, b: Coords): number {
-  const R = 6371;
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.latitude * Math.PI) / 180) *
-      Math.cos((b.latitude * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-}
-
-function formatDistance(km: number): string {
-  if (km < 1) return `На ${Math.round(km * 1000)}м. от теб`;
-  return `На ${km.toFixed(1)}км. от теб`;
-}
-
-function timeAgo(ts: number): string {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return "Забелязан току-що";
-  if (diff < 3600) return `Забелязан преди ${Math.floor(diff / 60)}м.`;
-  if (diff < 86400) return `Забелязан преди ${Math.floor(diff / 3600)}ч.`;
-  return `Забелязан преди ${Math.floor(diff / 86400)}д.`;
-}
 
 type Props = {
   marker: SightingMarker | null;
@@ -78,41 +54,16 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
     }).start(() => onCloseRef.current());
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > DRAG_THRESHOLD || g.vy > 0.5) {
-          Animated.timing(translateY, {
-            toValue: SHEET_HEIGHT,
-            duration: 220,
-            useNativeDriver: true,
-          }).start(() => onCloseRef.current());
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 220,
-          }).start();
-        }
-      },
-    }),
-  ).current;
 
   if (!marker) return null;
 
   const km = haversineKm(userLocation, marker.coordinate);
   const dist = formatDistance(km);
-  const time = timeAgo(marker.createdAt);
   const parents = chain && chain.length > 1 ? chain.slice(0, -1) : [];
 
   const handleShare = async () => {
     await Share.share({
-      message: `Забелязан ${marker.breed} (${marker.color}) — ${time}, ${dist}.${marker.note ? `\n${marker.note}` : ""}`,
+      message: `Забелязан ${marker.breed} (${marker.color}) — ${dist}.${marker.note ? `\n${marker.note}` : ""}`,
     });
   };
 
@@ -131,7 +82,7 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} />
           <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-            <View {...panResponder.panHandlers}>
+            <View>
               <View style={styles.handle} />
               <View style={styles.header}>
                 <Text style={styles.breed} numberOfLines={1}>{marker.breed}</Text>
@@ -162,7 +113,7 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
                   <View style={styles.divider} />
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Кога</Text>
-                    <Text style={styles.infoValue} numberOfLines={2}>{time}</Text>
+                    <TimeTag ts={marker.createdAt} color="#1C1C1E" fontSize={13} />
                   </View>
                   <View style={styles.divider} />
                   <View style={styles.infoRow}>
@@ -200,7 +151,7 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
                         {i < parents.length - 1 && <View style={styles.pathLine} />}
                       </View>
                       <Image source={{ uri: item.imageUri }} style={styles.pathImage} />
-                      <Text style={styles.pathTime}>{timeAgo(item.createdAt)}</Text>
+                      <TimeTag ts={item.createdAt} fontSize={10} />
                     </View>
                   ))}
                   <View style={styles.pathItem}>
@@ -208,7 +159,7 @@ export default function PetDetailSheet({ marker, userLocation, onClose, chain, p
                       <View style={[styles.pathDot, styles.pathDotCurrent]} />
                     </View>
                     <Image source={{ uri: marker.imageUri }} style={styles.pathImage} />
-                    <Text style={styles.pathTime}>{time}</Text>
+                    <TimeTag ts={marker.createdAt} fontSize={10} />
                   </View>
                 </View>
               )}

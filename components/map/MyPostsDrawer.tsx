@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import type { LostMarker, SightingMarker } from "./types";
+import TimeTag from "./TimeTag";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.82;
@@ -28,25 +29,16 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   myMarkers: MyPostItem[];
-  onSelect: (kind: "seen" | "lost", marker: SightingMarker | LostMarker) => void;
+  onSelect: (
+    kind: "seen" | "lost",
+    marker: SightingMarker | LostMarker,
+  ) => void;
   onEdit: (kind: "seen" | "lost", marker: SightingMarker | LostMarker) => void;
-  onDelete: (kind: "seen" | "lost", marker: SightingMarker | LostMarker) => void;
+  onDelete: (
+    kind: "seen" | "lost",
+    marker: SightingMarker | LostMarker,
+  ) => void;
 };
-
-function timeAgo(ts: number): string {
-  const diff = Math.floor((Date.now() - ts) / 1000);
-  if (diff < 60) return "преди малко";
-  if (diff < 3600) {
-    const m = Math.floor(diff / 60);
-    return `преди ${m} ${m === 1 ? "минута" : "минути"}`;
-  }
-  if (diff < 86400) {
-    const h = Math.floor(diff / 3600);
-    return `преди ${h} ${h === 1 ? "час" : "часа"}`;
-  }
-  const d = Math.floor(diff / 86400);
-  return `преди ${d} д`;
-}
 
 export default function MyPostsDrawer({
   visible,
@@ -182,8 +174,18 @@ export default function MyPostsDrawer({
                         style={[styles.img, found && styles.imgFound]}
                       />
                     ) : (
-                      <View style={[styles.img, styles.imgPlaceholder, found && styles.imgFound]}>
-                        <MaterialCommunityIcons name="paw" size={24} color="#C7C7CC" />
+                      <View
+                        style={[
+                          styles.img,
+                          styles.imgPlaceholder,
+                          found && styles.imgFound,
+                        ]}
+                      >
+                        <MaterialCommunityIcons
+                          name="paw"
+                          size={24}
+                          color="#C7C7CC"
+                        />
                       </View>
                     )}
                     <View style={styles.info}>
@@ -199,18 +201,33 @@ export default function MyPostsDrawer({
                             <Text style={styles.badgeFoundText}>НАМЕРЕН</Text>
                           </View>
                         ) : (
-                          <View style={[styles.badge, isLost ? styles.badgeLost : styles.badgeSeen]}>
-                            <Text style={[styles.badgeText, isLost ? styles.badgeTextLost : styles.badgeTextSeen]}>
+                          <View
+                            style={[
+                              styles.badge,
+                              isLost ? styles.badgeLost : styles.badgeSeen,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.badgeText,
+                                isLost
+                                  ? styles.badgeTextLost
+                                  : styles.badgeTextSeen,
+                              ]}
+                            >
                               {isLost ? "ТЪРСИ СЕ" : "ЗАБЕЛЯЗАН"}
                             </Text>
                           </View>
                         )}
                       </View>
-                      <Text style={[styles.sub, found && styles.subFound]} numberOfLines={1}>
+                      <Text
+                        style={[styles.sub, found && styles.subFound]}
+                        numberOfLines={1}
+                      >
                         {sub}
                       </Text>
                       <View style={styles.metaRow}>
-                        <Text style={styles.meta} numberOfLines={1}>{timeAgo(m.createdAt)}</Text>
+                        <TimeTag ts={m.createdAt} fontSize={11} />
                         <View style={styles.cardActions}>
                           {!found && (
                             <TouchableOpacity
@@ -218,7 +235,12 @@ export default function MyPostsDrawer({
                               activeOpacity={0.6}
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
                             >
-                              <EditPencil width={13} height={13} color="#AEAEB2" strokeWidth={1.8} />
+                              <EditPencil
+                                width={13}
+                                height={13}
+                                color="#AEAEB2"
+                                strokeWidth={1.8}
+                              />
                             </TouchableOpacity>
                           )}
                           <TouchableOpacity
@@ -228,14 +250,23 @@ export default function MyPostsDrawer({
                                 "Сигурен ли си, че искаш да изтриеш тази публикация?",
                                 [
                                   { text: "Откажи", style: "cancel" },
-                                  { text: "Изтрий", style: "destructive", onPress: () => onDelete(item.kind, m) },
+                                  {
+                                    text: "Изтрий",
+                                    style: "destructive",
+                                    onPress: () => onDelete(item.kind, m),
+                                  },
                                 ],
                               )
                             }
                             activeOpacity={0.6}
                             hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
                           >
-                            <BinFull width={13} height={13} color="#AEAEB2" strokeWidth={1.8} />
+                            <BinFull
+                              width={13}
+                              height={13}
+                              color="#AEAEB2"
+                              strokeWidth={1.8}
+                            />
                           </TouchableOpacity>
                         </View>
                       </View>
