@@ -10,10 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import BottomSheet from "./BottomSheet";
-import Dropdown from "./Dropdown";
-import { CAT_AGES, CAT_BREEDS, COLORS, DOG_AGES, DOG_BREEDS } from "./constants";
-import type { LostMarker, SightingMarker } from "./types";
+import BottomSheet from "../shared/BottomSheet";
+import Dropdown from "../shared/Dropdown";
+import { CAT_AGES, CAT_BREEDS, COLORS, DOG_AGES, DOG_BREEDS } from "../constants";
+import type { LostMarker, SightingMarker } from "../types";
 
 type EditForm = {
   petType: string;

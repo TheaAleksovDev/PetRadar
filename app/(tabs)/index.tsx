@@ -33,14 +33,14 @@ import FabMenu from "@/components/map/FabMenu";
 import FiltersModal, {
   DEFAULT_FILTERS,
   type FilterState,
-} from "@/components/map/FiltersModal";
-import LostPetDetailSheet from "@/components/map/LostPetDetailSheet";
-import LostPetModal from "@/components/map/LostPetModal";
-import MatchModal from "@/components/map/MatchModal";
-import EditMarkerSheet from "@/components/map/EditMarkerSheet";
+} from "@/components/map/modals/FiltersModal";
+import LostPetDetailSheet from "@/components/map/modals/LostPetDetailSheet";
+import LostPetModal from "@/components/map/modals/LostPetModal";
+import MatchModal from "@/components/map/modals/MatchModal";
+import EditMarkerSheet from "@/components/map/modals/EditMarkerSheet";
 import MyPostsDrawer, { type MyPostItem } from "@/components/map/MyPostsDrawer";
 import PathNotification from "@/components/map/PathNotification";
-import PetDetailSheet from "@/components/map/PetDetailSheet";
+import PetDetailSheet from "@/components/map/modals/PetDetailSheet";
 import PetMarker, {
   DOT_SIZE,
   LOST_MARKER_H,
@@ -53,74 +53,26 @@ import PetMarker, {
   PIN_W,
 } from "@/components/map/PetMarker";
 import ARLocationView from "@/components/map/ARLocationView";
-import ReportModal from "@/components/map/ReportModal";
+import ReportModal from "@/components/map/modals/ReportModal";
 import SettingsDrawer from "@/components/map/SettingsDrawer";
-import SightingMatchModal from "@/components/map/SightingMatchModal";
-import ThankYouModal from "@/components/map/ThankYouModal";
+import SightingMatchModal from "@/components/map/modals/SightingMatchModal";
+import ThankYouModal from "@/components/map/modals/ThankYouModal";
 import type {
   Coords,
   LostMarker,
   SightingMarker,
 } from "@/components/map/types";
+import { haversineKm } from "@/components/map/utils";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "expo-router";
-
-type Form = {
-  color: string;
-  breed: string;
-  age: string;
-  note: string;
-  petType: string;
-};
-const EMPTY_FORM: Form = {
-  color: "",
-  breed: "",
-  age: "",
-  note: "",
-  petType: "dog",
-};
-
-type PinnedChain = { id: string; chain: SightingMarker[]; color: string };
-const CHAIN_COLORS = [
-  "#F59E0B",
-  "#3B82F6",
-  "#8B5CF6",
-  "#EC4899",
-  "#14B8A6",
-  "#F97316",
-];
-
-function getFullChainIds(
-  markerId: string,
-  allMarkers: SightingMarker[],
-): Set<string> {
-  const ids = new Set<string>();
-  let current = allMarkers.find((m) => m.id === markerId);
-  while (current?.connectedParent) {
-    current = allMarkers.find((m) => m.id === current!.connectedParent);
-  }
-  while (current) {
-    ids.add(current.id);
-    current = current.connectedChild
-      ? allMarkers.find((m) => m.id === current!.connectedChild)
-      : undefined;
-  }
-  return ids;
-}
-
-function buildChain(
-  marker: SightingMarker,
-  allMarkers: SightingMarker[],
-): SightingMarker[] {
-  const chain: SightingMarker[] = [];
-  let current: SightingMarker | undefined = marker;
-  while (current) {
-    chain.unshift(current);
-    const parentId: string | undefined = current.connectedParent;
-    current = parentId ? allMarkers.find((m) => m.id === parentId) : undefined;
-  }
-  return chain;
-}
+import {
+  buildChain,
+  CHAIN_COLORS,
+  EMPTY_FORM,
+  getFullChainIds,
+  type Form,
+  type PinnedChain,
+} from "./mapHelpers";
 
 export default function HomeScreen() {
   const [initialRegion, setInitialRegion] = useState<Region | null>(null);
@@ -164,7 +116,7 @@ export default function HomeScreen() {
   const [myPostsVisible, setMyPostsVisible] = useState(false);
   const [myMarkerIds, setMyMarkerIds] = useState<Set<string>>(new Set());
   const [myOwnMarkers, setMyOwnMarkers] = useState<MyPostItem[]>([]);
-  const [markersLoading, setMarkersLoading] = useState(true);
+
   const [refreshing, setRefreshing] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [editingKind, setEditingKind] = useState<"seen" | "lost" | null>(null);
@@ -218,8 +170,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!token) return;
 
-    const loadAll = (initial = false) => {
-      if (initial) setMarkersLoading(true);
+    const loadAll = () => {
       setRefreshing(true);
       fetchAllMarkers()
         .then(({ sightings, lost }) => {
@@ -243,10 +194,10 @@ export default function HomeScreen() {
           });
         })
         .catch(() => {})
-        .finally(() => { if (initial) setMarkersLoading(false); setRefreshing(false); });
+        .finally(() => { setRefreshing(false); });
     };
 
-    loadAll(true);
+    loadAll();
     fetchMyMarkerIds().then((ids) => setMyMarkerIds(ids)).catch(() => {});
     fetchMyMarkers()
       .then(({ seen, lost }) =>
@@ -257,7 +208,7 @@ export default function HomeScreen() {
       )
       .catch(() => {});
 
-    const interval = setInterval(() => loadAll(false), 30_000);
+    const interval = setInterval(() => loadAll(), 30_000);
     return () => clearInterval(interval);
   }, [token]);
 
@@ -562,18 +513,6 @@ export default function HomeScreen() {
   const allChainMarkerIds = new Set(
     chainsToRender.flatMap((pc) => pc.chain.map((m) => m.id)),
   );
-
-  const haversineKm = (a: Coords, b: Coords) => {
-    const R = 6371;
-    const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-    const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
-    const s =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((a.latitude * Math.PI) / 180) *
-        Math.cos((b.latitude * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-  };
 
   const visibleSightings = markers
     .filter((m) => !m.isFound)

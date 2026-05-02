@@ -1,6 +1,6 @@
 import { Clock } from "iconoir-react-native";
 import { StyleSheet, Text, View } from "react-native";
-import { timeAgo } from "./utils";
+import { timeAgo } from "../utils";
 
 type Props = {
   ts: number;

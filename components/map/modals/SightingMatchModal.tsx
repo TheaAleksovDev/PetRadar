@@ -12,9 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { timeAgo } from "./utils";
-import type { SightingMarker } from "./types";
-import BottomSheet from "./BottomSheet";
+import { timeAgo } from "../utils";
+import type { SightingMarker } from "../types";
+import BottomSheet from "../shared/BottomSheet";
 
 const CELL_W = (Dimensions.get("window").width - 16 * 2 - 12) / 2;
 

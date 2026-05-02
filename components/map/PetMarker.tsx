@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Text, View } from "react-native";
-import TimeTag from "./TimeTag";
+import TimeTag from "./shared/TimeTag";
 import type { LostMarker, SightingMarker } from "./types";
 
 const C = 64;

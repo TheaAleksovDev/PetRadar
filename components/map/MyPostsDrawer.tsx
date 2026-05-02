@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import type { LostMarker, SightingMarker } from "./types";
-import TimeTag from "./TimeTag";
+import TimeTag from "./shared/TimeTag";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.82;

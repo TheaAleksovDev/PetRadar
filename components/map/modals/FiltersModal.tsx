@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Xmark } from "iconoir-react-native";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import BottomSheet from "./BottomSheet";
+import BottomSheet from "../shared/BottomSheet";
 
 export type FilterState = {
   view: "map" | "list";

@@ -11,9 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import type { Coords, SightingMarker } from "./types";
-import { haversineKm, formatDistance } from "./utils";
-import TimeTag from "./TimeTag";
+import type { Coords, SightingMarker } from "../types";
+import { haversineKm, formatDistance } from "../utils";
+import TimeTag from "../shared/TimeTag";
 
 const SHEET_HEIGHT = 420;
 

@@ -12,9 +12,9 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 import { Xmark } from "iconoir-react-native";
-import { timeAgo } from "./utils";
-import type { LostMarker } from "./types";
-import BottomSheet from "./BottomSheet";
+import { timeAgo } from "../utils";
+import type { LostMarker } from "../types";
+import BottomSheet from "../shared/BottomSheet";
 
 const CELL_W = (Dimensions.get("window").width - 16 * 2 - 12) / 2;
 

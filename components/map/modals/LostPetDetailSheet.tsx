@@ -13,9 +13,9 @@ import {
   View,
 } from "react-native";
 import LeaveCommentModal from "./LeaveCommentModal";
-import type { Comment, Coords, LostMarker } from "./types";
-import { haversineKm, formatDistance } from "./utils";
-import TimeTag from "./TimeTag";
+import type { Comment, Coords, LostMarker } from "../types";
+import { haversineKm, formatDistance } from "../utils";
+import TimeTag from "../shared/TimeTag";
 
 const SHEET_HEIGHT = 600;
 const LOST_COLOR = "#EF4444";

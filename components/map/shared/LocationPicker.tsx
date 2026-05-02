@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
-import type { Coords } from "./types";
+import type { Coords } from "../types";
 
 type Props = {
   visible: boolean;

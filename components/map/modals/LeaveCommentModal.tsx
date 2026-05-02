@@ -10,8 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import LocationPicker from "./LocationPicker";
-import type { Coords } from "./types";
+import LocationPicker from "../shared/LocationPicker";
+import type { Coords } from "../types";
 
 type Props = {
   visible: boolean;

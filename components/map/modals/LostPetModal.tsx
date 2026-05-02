@@ -14,11 +14,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import BottomSheet from "./BottomSheet";
-import Dropdown from "./Dropdown";
-import LocationPicker from "./LocationPicker";
-import { CAT_AGES, CAT_BREEDS, COLORS, DOG_AGES, DOG_BREEDS } from "./constants";
-import type { Coords } from "./types";
+import BottomSheet from "../shared/BottomSheet";
+import Dropdown from "../shared/Dropdown";
+import LocationPicker from "../shared/LocationPicker";
+import { CAT_AGES, CAT_BREEDS, COLORS, DOG_AGES, DOG_BREEDS } from "../constants";
+import type { Coords } from "../types";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
