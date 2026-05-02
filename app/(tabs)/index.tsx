@@ -123,7 +123,6 @@ export default function HomeScreen() {
   const [editingMarker, setEditingMarker] = useState<SightingMarker | LostMarker | null>(null);
   const [arVisible, setArVisible] = useState(false);
 
-  const pendingConnectionRef = useRef<{ sightingTempId: string; parentId: string } | null>(null);
 
   const { logout, token } = useAuth();
   const router = useRouter();
@@ -174,24 +173,8 @@ export default function HomeScreen() {
       setRefreshing(true);
       fetchAllMarkers()
         .then(({ sightings, lost }) => {
-          setMarkers((prev) => {
-            const tempIds = new Set(prev.map((m) => m.id).filter((id) => !/^\d+$/.test(id)));
-            const merged = [...sightings];
-            tempIds.forEach((id) => {
-              const temp = prev.find((m) => m.id === id);
-              if (temp) merged.push(temp);
-            });
-            return merged;
-          });
-          setLostMarkers((prev) => {
-            const tempIds = new Set(prev.map((m) => m.id).filter((id) => !/^\d+$/.test(id)));
-            const merged = [...lost];
-            tempIds.forEach((id) => {
-              const temp = prev.find((m) => m.id === id);
-              if (temp) merged.push(temp);
-            });
-            return merged;
-          });
+          setMarkers(sightings);
+          setLostMarkers(lost);
         })
         .catch(() => {})
         .finally(() => { setRefreshing(false); });
@@ -245,74 +228,39 @@ export default function HomeScreen() {
 
   const handleSightingSubmit = async () => {
     if (!form.color || !form.breed || !form.age || !sightingLocation) return;
-    const tempId = Date.now().toString();
     const createdAt = Date.now();
     const petType = (form.petType as "dog" | "cat" | "other") || "dog";
-    setPendingSightingId(tempId);
-    setMarkers((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        coordinate: sightingLocation,
-        imageUri,
-        createdAt,
-        color: form.color,
-        breed: form.breed,
-        age: form.age,
-        note: form.note || undefined,
-        petType,
-      },
-    ]);
+    const { color, breed, age, note } = form;
+    const loc = sightingLocation;
+    const uri = imageUri;
+
     setReportVisible(false);
     setForm(EMPTY_FORM);
 
-    setMyMarkerIds((prev) => new Set([...prev, tempId]));
-    setMyOwnMarkers((prev) => [
-      { kind: "seen", marker: { id: tempId, coordinate: sightingLocation, imageUri, createdAt, color: form.color, breed: form.breed, age: form.age, note: form.note || undefined, petType } },
-      ...prev,
-    ]);
-
-    (async () => {
-      const serverUri = imageUri ? await uploadImage(imageUri).catch(() => "") : "";
-      if (serverUri) {
-        setMarkers((prev) => prev.map((m) => m.id === tempId ? { ...m, imageUri: serverUri } : m));
-        setMyOwnMarkers((prev) => prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, imageUri: serverUri } } as MyPostItem : item));
-      }
-      createMarker({
+    const serverUri = uri ? await uploadImage(uri).catch(() => "") : "";
+    let id: string;
+    try {
+      ({ id } = await createMarker({
         markerType: "SEEN",
         petType,
-        breed: form.breed,
-        color: form.color,
-        age: form.age,
-        note: form.note || undefined,
+        breed,
+        color,
+        age,
+        note: note || undefined,
         imageUri: serverUri,
-        latitude: sightingLocation.latitude,
-        longitude: sightingLocation.longitude,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
         createdAt,
-      })
-        .then(({ id }) => {
-          setMarkers((prev) =>
-            prev.map((m) => (m.id === tempId ? { ...m, id } : m)),
-          );
-          setPendingSightingId(id);
-          setMyMarkerIds((prev) => {
-            const next = new Set(prev);
-            next.delete(tempId);
-            next.add(id);
-            return next;
-          });
-          setMyOwnMarkers((prev) =>
-            prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
-          );
-          const pending = pendingConnectionRef.current;
-          if (pending?.sightingTempId === tempId) {
-            connectMarker(id, { connectedParent: pending.parentId }).catch(() => {});
-            connectMarker(pending.parentId, { connectedChild: id }).catch(() => {});
-            pendingConnectionRef.current = null;
-          }
-        })
-        .catch(() => {});
-    })();
+      }));
+    } catch {
+      return;
+    }
+
+    const newMarker = { id, coordinate: loc, imageUri: serverUri, createdAt, color, breed, age, note: note || undefined, petType };
+    setMarkers((prev) => [...prev, newMarker]);
+    setMyMarkerIds((prev) => new Set([...prev, id]));
+    setMyOwnMarkers((prev) => [{ kind: "seen" as const, marker: newMarker }, ...prev]);
+    setPendingSightingId(id);
 
     const norm = (s: string) => s.trim().toLowerCase();
     const haversine = (a: Coords, b: Coords) => {
@@ -326,20 +274,19 @@ export default function HomeScreen() {
           Math.sin(dLon / 2) ** 2;
       return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
     };
-    const newPetType = form.petType || "dog";
     const found = lostMarkers
       .filter(
         (m) =>
           !m.connectedChild &&
-          (m.petType ?? "dog") === newPetType &&
+          (m.petType ?? "dog") === petType &&
           !myMarkerIds.has(m.id),
       )
       .map((m) => ({
         marker: m,
-        km: haversine(sightingLocation, m.coordinate),
+        km: haversine(loc, m.coordinate),
         score:
-          (norm(m.breed) === norm(form.breed) ? 2 : 0) +
-          (norm(m.color) === norm(form.color) ? 1 : 0),
+          (norm(m.breed) === norm(breed) ? 2 : 0) +
+          (norm(m.color) === norm(color) ? 1 : 0),
       }))
       .filter(({ km }) => km <= 20)
       .sort((a, b) => b.score - a.score || a.km - b.km)
@@ -349,24 +296,24 @@ export default function HomeScreen() {
     const foundSightings = markers
       .filter((m) => {
         if (m.connectedChild) return false;
-        if ((m.petType ?? "dog") !== newPetType) return false;
+        if ((m.petType ?? "dog") !== petType) return false;
         if (myMarkerIds.has(m.id)) return false;
         const chainIds = getFullChainIds(m.id, markers);
-        return ![...chainIds].some((id) => myMarkerIds.has(id));
+        return ![...chainIds].some((cid) => myMarkerIds.has(cid));
       })
       .map((m) => ({
         marker: m,
-        km: haversine(sightingLocation, m.coordinate),
+        km: haversine(loc, m.coordinate),
         score:
-          (norm(m.breed) === norm(form.breed) ? 2 : 0) +
-          (norm(m.color) === norm(form.color) ? 1 : 0),
+          (norm(m.breed) === norm(breed) ? 2 : 0) +
+          (norm(m.color) === norm(color) ? 1 : 0),
       }))
       .filter(({ km }) => km <= 20)
       .sort((a, b) => b.score - a.score || a.km - b.km)
       .map(({ marker }) => marker)
       .slice(0, 6);
 
-    setThankYouPetType(newPetType as "dog" | "cat" | "other");
+    setThankYouPetType(petType);
     if (found.length > 0) {
       setMatches(found);
       setSightingMatches(foundSightings);
@@ -380,7 +327,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleLostSubmit = (
+  const handleLostSubmit = async (
     data: {
       name: string;
       color: string;
@@ -393,40 +340,14 @@ export default function HomeScreen() {
     },
     location: Coords,
   ) => {
-    const tempId = `lost-${Date.now()}`;
     const createdAt = Date.now();
     const petType = (data.petType as "dog" | "cat" | "other") || "dog";
-    setLostMarkers((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        coordinate: location,
-        imageUri: data.imageUri,
-        createdAt,
-        name: data.name,
-        color: data.color,
-        breed: data.breed,
-        age: data.age,
-        phone: data.phone,
-        note: data.note || undefined,
-        petType,
-      },
-    ]);
     setLostModalVisible(false);
 
-    setMyMarkerIds((prev) => new Set([...prev, tempId]));
-    setMyOwnMarkers((prev) => [
-      { kind: "lost", marker: { id: tempId, coordinate: location, imageUri: data.imageUri, createdAt, name: data.name, color: data.color, breed: data.breed, age: data.age, phone: data.phone, note: data.note || undefined, petType } },
-      ...prev,
-    ]);
-
-    (async () => {
-      const serverUri = data.imageUri ? await uploadImage(data.imageUri).catch(() => "") : "";
-      if (serverUri) {
-        setLostMarkers((prev) => prev.map((m) => m.id === tempId ? { ...m, imageUri: serverUri } : m));
-        setMyOwnMarkers((prev) => prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, imageUri: serverUri } } as MyPostItem : item));
-      }
-      createMarker({
+    const serverUri = data.imageUri ? await uploadImage(data.imageUri).catch(() => "") : "";
+    let id: string;
+    try {
+      ({ id } = await createMarker({
         markerType: "LOST",
         petType,
         breed: data.breed,
@@ -439,23 +360,15 @@ export default function HomeScreen() {
         latitude: location.latitude,
         longitude: location.longitude,
         createdAt,
-      })
-        .then(({ id }) => {
-          setLostMarkers((prev) =>
-            prev.map((m) => (m.id === tempId ? { ...m, id } : m)),
-          );
-          setMyMarkerIds((prev) => {
-            const next = new Set(prev);
-            next.delete(tempId);
-            next.add(id);
-            return next;
-          });
-          setMyOwnMarkers((prev) =>
-            prev.map((item) => item.marker.id === tempId ? { ...item, marker: { ...item.marker, id } } as MyPostItem : item),
-          );
-        })
-        .catch(() => {});
-    })();
+      }));
+    } catch {
+      return;
+    }
+
+    const newMarker = { id, coordinate: location, imageUri: serverUri, createdAt, name: data.name, color: data.color, breed: data.breed, age: data.age, phone: data.phone, note: data.note || undefined, petType };
+    setLostMarkers((prev) => [...prev, newMarker]);
+    setMyMarkerIds((prev) => new Set([...prev, id]));
+    setMyOwnMarkers((prev) => [{ kind: "lost" as const, marker: newMarker }, ...prev]);
   };
 
   const openSighting = (marker: SightingMarker) => {
@@ -480,14 +393,12 @@ export default function HomeScreen() {
       ),
     );
 
-    if (/^\d+$/.test(markerId)) {
-      addCommentToMarker(markerId, {
-        comment,
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        createdAt: tempComment.createdAt,
-      }).catch(() => {});
-    }
+    addCommentToMarker(markerId, {
+      comment,
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+      createdAt: tempComment.createdAt,
+    }).catch(() => {});
   };
 
   if (!initialRegion || !userLocation)
@@ -977,12 +888,8 @@ export default function HomeScreen() {
                 m.id === marker.id ? { ...m, connectedChild: sid } : m,
               ),
             );
-            if (/^\d+$/.test(sid)) {
-              connectMarker(sid, { connectedParent: marker.id }).catch(() => {});
-              connectMarker(marker.id, { connectedChild: sid }).catch(() => {});
-            } else {
-              pendingConnectionRef.current = { sightingTempId: sid, parentId: marker.id };
-            }
+            connectMarker(sid, { connectedParent: marker.id }).catch(() => {});
+            connectMarker(marker.id, { connectedChild: sid }).catch(() => {});
             setPendingSightingId(null);
             const newSighting = markers.find((m) => m.id === sid);
             if (newSighting) openSighting(newSighting);
@@ -1023,12 +930,8 @@ export default function HomeScreen() {
                 return m;
               }),
             );
-            if (/^\d+$/.test(sid)) {
-              connectMarker(sid, { connectedParent: marker.id }).catch(() => {});
-              connectMarker(marker.id, { connectedChild: sid }).catch(() => {});
-            } else {
-              pendingConnectionRef.current = { sightingTempId: sid, parentId: marker.id };
-            }
+            connectMarker(sid, { connectedParent: marker.id }).catch(() => {});
+            connectMarker(marker.id, { connectedChild: sid }).catch(() => {});
             setPendingSightingId(null);
             if (newSighting) {
               setAfterThankYou(() => () => {
