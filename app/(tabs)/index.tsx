@@ -1061,7 +1061,7 @@ export default function HomeScreen() {
           } else {
             setLostMarkers((prev) => prev.map((m) => m.id === id ? { ...m, ...form, petType } : m));
           }
-          if (/^\d+$/.test(id)) updateMarker(id, form).catch(() => {});
+          updateMarker(id, form).catch(() => {});
         }}
       />
 

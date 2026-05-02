@@ -47,7 +47,6 @@ export default function EditMarkerSheet({ visible, kind, marker, onClose, onSave
   const set = (field: keyof EditForm, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
 
-  // Sync form when marker changes
   const [lastId, setLastId] = useState<string | null>(null);
   if (marker && marker.id !== lastId) {
     setLastId(marker.id);
@@ -83,7 +82,6 @@ export default function EditMarkerSheet({ visible, kind, marker, onClose, onSave
         >
           <Text style={styles.title}>Редактирай публикация</Text>
 
-          {/* Pet type */}
           <View style={styles.pillRow}>
             {(["dog", "cat", "other"] as const).map((val) => (
               <TouchableOpacity

@@ -30,39 +30,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    console.log("[auth] login attempt: ", { email });
     try {
       const data = await apiLogin(email, password);
-      console.log("[auth] login response: ", data);
       setAuth(data.token);
-      console.log("[auth] login success, token set");
     } catch (e: any) {
-      console.log(
-        "[auth] login error: ",
-        e?.response?.status,
-        e?.response?.data ?? e?.message,
-      );
       throw e;
     }
   };
 
   const signup = async (name: string, email: string, password: string) => {
-    console.log("[auth] signup attempt →", { name, email });
     try {
       const data = await apiSignup(name, email, password);
-      console.log("[auth] signup response ←", data);
-      if (data.token) {
-        setAuth(data.token);
-        console.log("[auth] signup success, token set");
-      } else {
-        console.log("[auth] signup success, no token in response");
-      }
+      if (data.token) setAuth(data.token);
     } catch (e: any) {
-      console.log(
-        "[auth] signup error ←",
-        e?.response?.status,
-        e?.response?.data ?? e?.message,
-      );
       throw e;
     }
   };
