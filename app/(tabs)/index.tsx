@@ -23,13 +23,15 @@ import {
   fetchAllMarkers,
   fetchMyMarkerIds,
   fetchMyMarkers,
-  reopenMarker,
   markAsFound,
+  reopenMarker,
   updateMarker,
   uploadImage,
 } from "@/api/markers";
+import ARLocationView from "@/components/map/ARLocationView";
 import CameraScreen from "@/components/map/CameraScreen";
 import FabMenu from "@/components/map/FabMenu";
+import EditMarkerSheet from "@/components/map/modals/EditMarkerSheet";
 import FiltersModal, {
   DEFAULT_FILTERS,
   type FilterState,
@@ -37,10 +39,12 @@ import FiltersModal, {
 import LostPetDetailSheet from "@/components/map/modals/LostPetDetailSheet";
 import LostPetModal from "@/components/map/modals/LostPetModal";
 import MatchModal from "@/components/map/modals/MatchModal";
-import EditMarkerSheet from "@/components/map/modals/EditMarkerSheet";
+import PetDetailSheet from "@/components/map/modals/PetDetailSheet";
+import ReportModal from "@/components/map/modals/ReportModal";
+import SightingMatchModal from "@/components/map/modals/SightingMatchModal";
+import ThankYouModal from "@/components/map/modals/ThankYouModal";
 import MyPostsDrawer, { type MyPostItem } from "@/components/map/MyPostsDrawer";
 import PathNotification from "@/components/map/PathNotification";
-import PetDetailSheet from "@/components/map/modals/PetDetailSheet";
 import PetMarker, {
   DOT_SIZE,
   LOST_MARKER_H,
@@ -52,11 +56,7 @@ import PetMarker, {
   PIN_H,
   PIN_W,
 } from "@/components/map/PetMarker";
-import ARLocationView from "@/components/map/ARLocationView";
-import ReportModal from "@/components/map/modals/ReportModal";
 import SettingsDrawer from "@/components/map/SettingsDrawer";
-import SightingMatchModal from "@/components/map/modals/SightingMatchModal";
-import ThankYouModal from "@/components/map/modals/ThankYouModal";
 import type {
   Coords,
   LostMarker,
@@ -120,9 +120,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [editingKind, setEditingKind] = useState<"seen" | "lost" | null>(null);
-  const [editingMarker, setEditingMarker] = useState<SightingMarker | LostMarker | null>(null);
+  const [editingMarker, setEditingMarker] = useState<
+    SightingMarker | LostMarker | null
+  >(null);
   const [arVisible, setArVisible] = useState(false);
-
 
   const { logout, token } = useAuth();
   const router = useRouter();
@@ -177,17 +178,21 @@ export default function HomeScreen() {
           setLostMarkers(lost);
         })
         .catch(() => {})
-        .finally(() => { setRefreshing(false); });
+        .finally(() => {
+          setRefreshing(false);
+        });
     };
 
     loadAll();
-    fetchMyMarkerIds().then((ids) => setMyMarkerIds(ids)).catch(() => {});
+    fetchMyMarkerIds()
+      .then((ids) => setMyMarkerIds(ids))
+      .catch(() => {});
     fetchMyMarkers()
       .then(({ seen, lost }) =>
         setMyOwnMarkers([
           ...seen.map((m): MyPostItem => ({ kind: "seen", marker: m })),
           ...lost.map((m): MyPostItem => ({ kind: "lost", marker: m })),
-        ])
+        ]),
       )
       .catch(() => {});
 
@@ -256,10 +261,23 @@ export default function HomeScreen() {
       return;
     }
 
-    const newMarker = { id, coordinate: loc, imageUri: serverUri, createdAt, color, breed, age, note: note || undefined, petType };
+    const newMarker = {
+      id,
+      coordinate: loc,
+      imageUri: serverUri,
+      createdAt,
+      color,
+      breed,
+      age,
+      note: note || undefined,
+      petType,
+    };
     setMarkers((prev) => [...prev, newMarker]);
     setMyMarkerIds((prev) => new Set([...prev, id]));
-    setMyOwnMarkers((prev) => [{ kind: "seen" as const, marker: newMarker }, ...prev]);
+    setMyOwnMarkers((prev) => [
+      { kind: "seen" as const, marker: newMarker },
+      ...prev,
+    ]);
     setPendingSightingId(id);
 
     const norm = (s: string) => s.trim().toLowerCase();
@@ -344,7 +362,9 @@ export default function HomeScreen() {
     const petType = (data.petType as "dog" | "cat" | "other") || "dog";
     setLostModalVisible(false);
 
-    const serverUri = data.imageUri ? await uploadImage(data.imageUri).catch(() => "") : "";
+    const serverUri = data.imageUri
+      ? await uploadImage(data.imageUri).catch(() => "")
+      : "";
     let id: string;
     try {
       ({ id } = await createMarker({
@@ -365,10 +385,25 @@ export default function HomeScreen() {
       return;
     }
 
-    const newMarker = { id, coordinate: location, imageUri: serverUri, createdAt, name: data.name, color: data.color, breed: data.breed, age: data.age, phone: data.phone, note: data.note || undefined, petType };
+    const newMarker = {
+      id,
+      coordinate: location,
+      imageUri: serverUri,
+      createdAt,
+      name: data.name,
+      color: data.color,
+      breed: data.breed,
+      age: data.age,
+      phone: data.phone,
+      note: data.note || undefined,
+      petType,
+    };
     setLostMarkers((prev) => [...prev, newMarker]);
     setMyMarkerIds((prev) => new Set([...prev, id]));
-    setMyOwnMarkers((prev) => [{ kind: "lost" as const, marker: newMarker }, ...prev]);
+    setMyOwnMarkers((prev) => [
+      { kind: "lost" as const, marker: newMarker },
+      ...prev,
+    ]);
   };
 
   const openSighting = (marker: SightingMarker) => {
@@ -389,7 +424,9 @@ export default function HomeScreen() {
     };
     setLostMarkers((prev) =>
       prev.map((m) =>
-        m.id === markerId ? { ...m, comments: [...(m.comments ?? []), tempComment] } : m,
+        m.id === markerId
+          ? { ...m, comments: [...(m.comments ?? []), tempComment] }
+          : m,
       ),
     );
 
@@ -444,7 +481,9 @@ export default function HomeScreen() {
     | { type: "seen"; marker: SightingMarker }
     | { type: "lost"; marker: LostMarker };
   const listItems: ListItem[] = [
-    ...visibleSightings.filter((m) => !m.connectedChild).map((m) => ({ type: "seen" as const, marker: m })),
+    ...visibleSightings
+      .filter((m) => !m.connectedChild)
+      .map((m) => ({ type: "seen" as const, marker: m })),
     ...visibleLost.map((m) => ({ type: "lost" as const, marker: m })),
   ];
   if (filters.sortBy === "recent")
@@ -688,7 +727,11 @@ export default function HomeScreen() {
             <Settings width={16} height={16} color="#1C1C1E" strokeWidth={2} />
           </TouchableOpacity>
           {refreshing && (
-            <ActivityIndicator size="small" color="#1C1C1E" style={styles.refreshSpinner} />
+            <ActivityIndicator
+              size="small"
+              color="#1C1C1E"
+              style={styles.refreshSpinner}
+            />
           )}
         </View>
 
@@ -756,7 +799,11 @@ export default function HomeScreen() {
           onPress={() => setArVisible(true)}
           activeOpacity={0.85}
         >
-          <MaterialCommunityIcons name="camera-iris" size={18} color="#1C1C1E" />
+          <MaterialCommunityIcons
+            name="camera-iris"
+            size={18}
+            color="#1C1C1E"
+          />
         </TouchableOpacity>
       </View>
 
@@ -821,7 +868,10 @@ export default function HomeScreen() {
           setMyOwnMarkers((prev) =>
             prev.map((item) =>
               idsToMark.includes(item.marker.id)
-                ? ({ ...item, marker: { ...item.marker, isFound: true } } as MyPostItem)
+                ? ({
+                    ...item,
+                    marker: { ...item.marker, isFound: true },
+                  } as MyPostItem)
                 : item,
             ),
           );
@@ -830,11 +880,17 @@ export default function HomeScreen() {
           if (!selectedLostMarker) return;
           const id = selectedLostMarker.id;
           setSelectedLostMarker({ ...selectedLostMarker, isFound: false });
-          setLostMarkers((prev) => [...prev, { ...selectedLostMarker, isFound: false }]);
+          setLostMarkers((prev) => [
+            ...prev,
+            { ...selectedLostMarker, isFound: false },
+          ]);
           setMyOwnMarkers((prev) =>
             prev.map((item) =>
               item.marker.id === id
-                ? ({ ...item, marker: { ...item.marker, isFound: false } } as MyPostItem)
+                ? ({
+                    ...item,
+                    marker: { ...item.marker, isFound: false },
+                  } as MyPostItem)
                 : item,
             ),
           );
@@ -864,11 +920,6 @@ export default function HomeScreen() {
             setPinnedChains((prev) => prev.filter((p) => p.id !== id));
           }
         }}
-        pinnedChainsInfo={pinnedChains.map((pc) => ({
-          color: pc.color,
-          onDismiss: () =>
-            setPinnedChains((prev) => prev.filter((c) => c.id !== pc.id)),
-        }))}
       />
 
       <MatchModal
@@ -1001,7 +1052,11 @@ export default function HomeScreen() {
           }
           setFilters((f) => ({ ...f, view: "map" }));
           mapRef.current?.animateToRegion(
-            { ...marker.coordinate, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+            {
+              ...marker.coordinate,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            },
             500,
           );
           if (kind === "seen") {
@@ -1016,7 +1071,9 @@ export default function HomeScreen() {
           setEditSheetVisible(true);
         }}
         onDelete={(kind, marker) => {
-          setMyOwnMarkers((prev) => prev.filter((item) => item.marker.id !== marker.id));
+          setMyOwnMarkers((prev) =>
+            prev.filter((item) => item.marker.id !== marker.id),
+          );
           if (kind === "seen") {
             setMarkers((prev) => prev.filter((m) => m.id !== marker.id));
           } else {
@@ -1025,7 +1082,11 @@ export default function HomeScreen() {
           setPinnedChains([]);
           setSelectedMarker(null);
           setSelectedChain([]);
-          setMyMarkerIds((prev) => { const next = new Set(prev); next.delete(marker.id); return next; });
+          setMyMarkerIds((prev) => {
+            const next = new Set(prev);
+            next.delete(marker.id);
+            return next;
+          });
           if (/^\d+$/.test(marker.id)) deleteMarker(marker.id).catch(() => {});
         }}
       />
@@ -1035,8 +1096,14 @@ export default function HomeScreen() {
           lostMarkers={visibleLost}
           sightings={visibleSightings}
           userLocation={userLocation}
-          onSelectLost={(m) => { setArVisible(false); setSelectedLostMarker(m); }}
-          onSelectSighting={(m) => { setArVisible(false); openSighting(m); }}
+          onSelectLost={(m) => {
+            setArVisible(false);
+            setSelectedLostMarker(m);
+          }}
+          onSelectSighting={(m) => {
+            setArVisible(false);
+            openSighting(m);
+          }}
           onClose={() => setArVisible(false)}
         />
       )}
@@ -1051,15 +1118,22 @@ export default function HomeScreen() {
           setMyOwnMarkers((prev) =>
             prev.map((item) =>
               item.marker.id === id
-                ? ({ ...item, marker: { ...item.marker, ...form } } as MyPostItem)
+                ? ({
+                    ...item,
+                    marker: { ...item.marker, ...form },
+                  } as MyPostItem)
                 : item,
             ),
           );
           const petType = form.petType as "dog" | "cat" | "other" | undefined;
           if (kind === "seen") {
-            setMarkers((prev) => prev.map((m) => m.id === id ? { ...m, ...form, petType } : m));
+            setMarkers((prev) =>
+              prev.map((m) => (m.id === id ? { ...m, ...form, petType } : m)),
+            );
           } else {
-            setLostMarkers((prev) => prev.map((m) => m.id === id ? { ...m, ...form, petType } : m));
+            setLostMarkers((prev) =>
+              prev.map((m) => (m.id === id ? { ...m, ...form, petType } : m)),
+            );
           }
           updateMarker(id, form).catch(() => {});
         }}
@@ -1085,7 +1159,6 @@ export default function HomeScreen() {
         onResetLocation={() => setSightingLocation(userLocation)}
         onSubmit={handleSightingSubmit}
       />
-
     </View>
   );
 }

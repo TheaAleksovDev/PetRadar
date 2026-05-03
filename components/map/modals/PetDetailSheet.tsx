@@ -25,7 +25,6 @@ type Props = {
   chain?: SightingMarker[];
   pathPinned?: boolean;
   onTogglePath?: (pinned: boolean) => void;
-  pinnedChainsInfo?: { color: string; onDismiss: () => void }[];
 };
 
 export default function PetDetailSheet({ marker, userLocation, onClose, chain, pathPinned, onTogglePath }: Props) {
